@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { COMPACT_COPY_LIMITS } from "../src/game/commentary.js";
+import { COMPACT_COPY_LIMITS, GOAL_PLAYER_ROLES } from "../src/game/commentary.js";
 import { createBracketSlotMap, getFirstMeetingMatchId, getTeamSlot, isLegalFinalPair } from "../src/game/bracket.js";
 import { ATTRIBUTE_KEYS, ZERO_LUCK_CHAMPION_ATTRIBUTES, championChance, expectedGoals, getChinaSkill, scoreMatch } from "../src/game/model.js";
 import { createRng } from "../src/game/random.js";
@@ -45,6 +45,14 @@ for (const group of GROUPS) {
 const allowedPartKinds = new Set(["text", "time", "team", "player", "system", "score"]);
 const allowedPositions = new Set(PLAYER_POSITIONS);
 const allowedRoles = new Set(PLAYER_ROLES);
+const allowedGoalRoles = new Set(GOAL_PLAYER_ROLES);
+const positionRoleMatrix = {
+  goalkeeper: new Set(["save"]),
+  defender: new Set(["block", "pace", "setPiece"]),
+  midfielder: new Set(["control", "block", "setPiece", "finish"]),
+  creator: new Set(["control", "setPiece", "finish", "pace"]),
+  forward: new Set(["finish", "pace", "setPiece", "control"]),
+};
 const allTeamCodes = new Set([...TEAMS.map((team) => team.code), "cn"]);
 
 for (const code of allTeamCodes) {
@@ -57,6 +65,7 @@ for (const code of allTeamCodes) {
     assert.ok(player.roles.length >= 1, `${code}:${player.name} should have roles`);
     for (const role of player.roles) {
       assert.ok(allowedRoles.has(role), `${code}:${player.name} invalid role ${role}`);
+      assert.ok(positionRoleMatrix[player.position]?.has(role), `${code}:${player.name} incompatible ${player.position}/${role}`);
     }
   }
 }
@@ -88,6 +97,10 @@ function assertMatchCommentary(run) {
         const profile = (PLAYER_PROFILES_BY_TEAM[line.playerEvent.teamCode] || []).find((player) => player.name === line.playerEvent.name);
         assert.ok(profile, `${round.key}:${line.id} missing player event profile for ${line.playerEvent.name}`);
         assert.ok(profile.roles.includes(line.playerEvent.role), `${round.key}:${line.id} incompatible role ${line.playerEvent.role} for ${line.playerEvent.name}`);
+        assert.ok(positionRoleMatrix[profile.position]?.has(line.playerEvent.role), `${round.key}:${line.id} incompatible event ${profile.position}/${line.playerEvent.role}`);
+        if (line.id.includes("-goal-")) {
+          assert.ok(allowedGoalRoles.has(line.playerEvent.role), `${round.key}:${line.id} goal line uses non-goal role ${line.playerEvent.role}`);
+        }
       }
       if (line.id.endsWith("-final") || line.id.endsWith("-score")) {
         assert.deepEqual(line.scoreState, round.score, `${round.key}:${line.id} scoreState should match final score`);

@@ -19,6 +19,8 @@ export const COMPACT_COPY_LIMITS = {
   pathFinalNote: 34,
 };
 
+export const GOAL_PLAYER_ROLES = ["finish", "pace", "setPiece", "control"];
+
 const COMPACT_SCORE_TEAM_NAMES = {
   阿尔及利亚: "阿尔及",
   "刚果（金）": "刚果金",
@@ -57,24 +59,24 @@ const LUCK_LINES = [
 
 const OPPONENT_TIER_LINES = {
   superpower: [
-    ["强队气场压过来，", "中国队把勇气临时加班。"],
-    ["对面星味很足，", "解说席先把冷门两个字写轻一点。"],
+    ["强队气场压过来，", "把勇气临时加班。"],
+    ["对面星味很足，", "把冷门两个字写轻一点。"],
   ],
   host: [
-    ["东道主声浪很满，", "草皮都像开了扩音器。"],
-    ["主场氛围往上拱，", "中国队把客场二字先折起来。"],
+    ["东道主声浪很满，", "把客场模式调成静音。"],
+    ["主场氛围往上拱，", "把客场二字先折起来。"],
   ],
   asia: [
-    ["亚洲德比味道上来了，", "看台开始计算东亚风向。"],
-    ["熟人局不好踢，", "每次逼抢都像群聊已读。"],
+    ["亚洲德比味道上来了，", "把每次逼抢都踢成群聊已读。"],
+    ["熟人局不好踢，", "先把东亚风向压在脚下。"],
   ],
   underdog: [
-    ["对手看着低调，", "但世界杯从不负责讲道理。"],
-    ["这场纸面不吓人，", "现实往往专治纸面。"],
+    ["对手看着低调，", "也不敢把剧本读太快。"],
+    ["这场纸面不吓人，", "先把纸面折成护身符。"],
   ],
   default: [
-    ["对面节奏不慢，", "中国队先把阵脚钉住。"],
-    ["比赛进入拉扯，", "每一次二点球都像开盲盒。"],
+    ["对面节奏不慢，", "先把阵脚钉住。"],
+    ["比赛进入拉扯，", "把每次二点球都当开盲盒。"],
   ],
 };
 
@@ -105,6 +107,25 @@ const PLAYER_EVENT_LINES = {
   ],
 };
 
+const PLAYER_GOAL_EVENT_LINES = {
+  finish: [
+    ["一脚处理很锋利，", "皮球把比分牌敲醒。"],
+    ["在禁区里找到针眼，", "这球钻得很有主见。"],
+  ],
+  pace: [
+    ["把防线甩到身后，", "单刀像按了快进键。"],
+    ["边路一路提速，", "最后一脚把风送进网窝。"],
+  ],
+  setPiece: [
+    ["定位球开进危险区，", "皮球像带着批注落下。"],
+    ["任意球弧线绕过人墙，", "门将只摸到叹号。"],
+  ],
+  control: [
+    ["把节奏拨到空当，", "最后一下把球送进网里。"],
+    ["中路调度突然加速，", "比分跟着向前挪了一步。"],
+  ],
+};
+
 function getTeamProfiles(team) {
   return PLAYER_PROFILES_BY_TEAM[team?.code] || [
     { name: `${team?.name || "对手"}队长`, position: "midfielder", roles: ["control"] },
@@ -115,6 +136,11 @@ function pickPlayerByRole(rng, team, preferredRoles = []) {
   const profiles = getTeamProfiles(team);
   const matching = profiles.filter((player) => player.roles.some((role) => preferredRoles.includes(role)));
   return pick(rng, matching.length ? matching : profiles);
+}
+
+function pickRoleForPlayer(rng, player, preferredRoles = []) {
+  const matching = (player?.roles || []).filter((role) => preferredRoles.includes(role));
+  return pick(rng, matching.length ? matching : player?.roles || preferredRoles);
 }
 
 function getOpponentTier(team) {
@@ -234,10 +260,10 @@ function makeGoalLines({ match, opponent, rng, baseId }) {
     if (isChina) chinaScore += 1;
     else opponentScore += 1;
     const scorer = isChina
-      ? pickPlayerByRole(rng, { code: "cn", name: "中国队" }, ["finish", "pace", "setPiece", "control"])
-      : pickPlayerByRole(rng, opponent, ["finish", "pace", "setPiece", "control"]);
-    const role = pick(rng, scorer.roles || ["finish"]);
-    const text = pick(rng, isChina ? chinaGoalTexts : PLAYER_EVENT_LINES[role] || opponentGoalTexts);
+      ? pickPlayerByRole(rng, { code: "cn", name: "中国队" }, GOAL_PLAYER_ROLES)
+      : pickPlayerByRole(rng, opponent, GOAL_PLAYER_ROLES);
+    const role = pickRoleForPlayer(rng, scorer, GOAL_PLAYER_ROLES);
+    const text = pick(rng, isChina ? chinaGoalTexts : PLAYER_GOAL_EVENT_LINES[role] || opponentGoalTexts);
     const scoreText = `${chinaScore}:${opponentScore}`;
 
     return richLine(

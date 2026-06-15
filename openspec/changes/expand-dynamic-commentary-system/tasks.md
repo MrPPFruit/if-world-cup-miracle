@@ -13,10 +13,10 @@
 ## 3. Verification
 
 - [x] 3.1 Extend game verification for deterministic commentary, player/team matching, position-compatible events, semantic part kinds, and compact-copy length budgets.
-- [ ] 3.2 Run `npm run verify:game` and `npm run build`.
-- [ ] 3.3 Preview the app in the Codex in-app browser and screenshot-review key result screens for text overflow or layout breakage.
+- [x] 3.2 Run `npm run verify:game` and `npm run build`.
+- [x] 3.3 Preview the app in the Codex in-app browser and screenshot-review key result screens for text overflow or layout breakage.
 
 ## 4. Closeout
 
 - [x] 4.1 Update design QA or project notes with the dynamic commentary system boundary.
-- [ ] 4.2 Run OpenSpec/Comet validation and prepare the change for archive.
+- [x] 4.2 Run OpenSpec/Comet validation and prepare the change for archive.

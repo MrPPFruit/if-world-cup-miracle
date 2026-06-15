@@ -3252,7 +3252,8 @@ button {
 .final-hero h2 {
   margin: 0;
   color: #f01822;
-  font-size: 31px;
+  max-width: 100%;
+  font-size: 27.5px;
   line-height: 1.08;
   font-weight: 1000;
   display: inline-flex;

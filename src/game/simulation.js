@@ -595,7 +595,7 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
     chinaMatches,
     knockout,
     attributes,
-    rng,
+    rng: createRng(`run-copy:${seed}:${replacedTeam.code}:${result}:${JSON.stringify(attributes || {})}`),
   });
 
   return {
