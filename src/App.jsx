@@ -27,8 +27,7 @@ const ATTRIBUTE_MIN = 0;
 const ATTRIBUTE_MAX = 10;
 const TRANSITION_TOTAL_MS = 30000;
 const TRANSITION_SETTLE_MS = 3000;
-const TRANSITION_REVEAL_COUNT = 17;
-const TRANSITION_LINE_INTERVAL_MS = Math.round((TRANSITION_TOTAL_MS - TRANSITION_SETTLE_MS) / (TRANSITION_REVEAL_COUNT - 1));
+const TRANSITION_LINE_INTERVAL_MS = 1700;
 const TRANSITION_FAST_LINE_INTERVAL_MS = 500;
 const KNOCKOUT_REPORT_LINE_INTERVAL_MS = 700;
 
@@ -50,12 +49,17 @@ const PRESETS = [
 const team = (code, flag, name) => ({ code, flag, name });
 
 const GROUPS = GAME_GROUPS;
+const PREVIEW_SELECTED_TEAM = { code: "jp", flag: "🇯🇵", name: "日本", group: "F" };
 
 const TEAM_DISPLAY_NAMES = {
   阿尔及利亚: "阿尔及",
   "刚果（金）": "刚果金",
   哥斯达黎加: "哥斯达",
 };
+
+function getCompactScoreTeamName(name) {
+  return TEAM_DISPLAY_NAMES[name] || name;
+}
 
 const GROUP_ADVANCE_PREVIEW = {
   A: "墨西哥 / 韩国",
@@ -82,11 +86,39 @@ const systemTag = (text) => transitionPart(text, "system");
 const score = (text) => transitionPart(text, "score");
 
 function renderRichParts(line) {
-  return line.parts.map((part, partIndex) => (
-    <span className={cx(part.kind !== "text" && `feed-part-${part.kind}`)} key={`${line.id}-${partIndex}`}>
-      {part.text}
-    </span>
-  ));
+  const nodes = [];
+
+  for (let partIndex = 0; partIndex < line.parts.length; partIndex += 1) {
+    const part = line.parts[partIndex];
+    const nextPart = line.parts[partIndex + 1];
+
+    if (part.kind === "text" && nextPart?.kind === "score" && part.text.length > 0) {
+      const keepLength = Math.min(8, part.text.length);
+      const head = part.text.slice(0, -keepLength);
+      const tail = part.text.slice(-keepLength);
+
+      if (head) {
+        nodes.push(<span key={`${line.id}-${partIndex}-head`}>{head}</span>);
+      }
+
+      nodes.push(
+        <span className="score-keep-group" key={`${line.id}-${partIndex}-score-group`}>
+          <span>{tail}</span>
+          <span className="feed-part-score">{nextPart.text}</span>
+        </span>,
+      );
+      partIndex += 1;
+      continue;
+    }
+
+    nodes.push(
+      <span className={cx(part.kind !== "text" && `feed-part-${part.kind}`)} key={`${line.id}-${partIndex}`}>
+        {part.text}
+      </span>,
+    );
+  }
+
+  return nodes;
 }
 
 function getTransitionLines(selectedTeam) {
@@ -137,10 +169,9 @@ function getTransitionLines(selectedTeam) {
     ]),
     transitionLine("match1-final", [
       time("90+4’"),
-      teamName(opponents[0]),
-      t("反击补刀，终场比分定格："),
-      score(`中国队 1:2 ${opponents[0]}`),
-      t("。"),
+      systemTag("终场"),
+      t("："),
+      score(`中国队 1:2 ${getCompactScoreTeamName(opponents[0])}`),
     ]),
     transitionLine("match2-start", [
       time("17’"),
@@ -166,10 +197,9 @@ function getTransitionLines(selectedTeam) {
     ]),
     transitionLine("match2-final", [
       time("90+6’"),
-      playerName("王大雷"),
-      t("扑出单刀，终场比分保住："),
-      score(`中国队 1:1 ${opponents[1]}`),
-      t("。"),
+      systemTag("终场"),
+      t("："),
+      score(`中国队 1:1 ${getCompactScoreTeamName(opponents[1])}`),
     ]),
     transitionLine("match3-start", [
       time("12’"),
@@ -195,10 +225,9 @@ function getTransitionLines(selectedTeam) {
     ]),
     transitionLine("match3-final", [
       time("90+5’"),
-      systemTag("裁判"),
-      t("吹响终场，比分写入表格："),
-      score(`中国队 2:1 ${opponents[2]}`),
-      t("。"),
+      systemTag("终场"),
+      t("："),
+      score(`中国队 2:1 ${getCompactScoreTeamName(opponents[2])}`),
     ]),
     transitionLine("group-summary", [
       teamName("中国队"),
@@ -231,7 +260,7 @@ const KNOCKOUT_ROUNDS = [
       transitionLine("ko32-72", [time("72’"), teamName("哥伦比亚"), t("单刀打偏，门柱偷偷松了一口气。")]),
       transitionLine("ko32-79", [time("79’"), teamName("哥伦比亚"), t("换上前锋，替补席像刚接到催单。")]),
       transitionLine("ko32-83", [time("83’"), systemTag("VAR"), t("沉默三秒，"), systemTag("裁判"), t("表示屏幕也需要冷静。")]),
-      transitionLine("ko32-88", [time("88’"), teamName("中国队"), t("反击破门，比分来到"), score("2:1"), t("。")]),
+      transitionLine("ko32-88", [time("88’"), teamName("中国队"), t("反击破门，比分来到"), score("2:1")]),
       transitionLine("ko32-90", [time("90+2’"), t("最后一脚长传飞出边线，大家都假装这是战术。")]),
       transitionLine("ko32-final", [systemTag("终场"), t("哨响  梦还在  大家先别醒")]),
     ],
@@ -273,7 +302,7 @@ const KNOCKOUT_ROUNDS = [
       transitionLine("koqf-79", [time("79’"), systemTag("幸运值"), t("下场踢后腰，门柱挡出必进球。")]),
       transitionLine("koqf-82", [time("82’"), teamName("法国"), t("连续传中，禁区像被按了刷新键。")]),
       transitionLine("koqf-84", [time("84’"), teamName("中国队"), playerName("门将"), t("没说话，但手套已经开始发光。")]),
-      transitionLine("koqf-86", [time("86’"), teamName("中国队"), t("禁区混战破门，比分变成"), score("2:1"), t("。")]),
+      transitionLine("koqf-86", [time("86’"), teamName("中国队"), t("禁区混战破门，比分变成"), score("2:1")]),
       transitionLine("koqf-91", [time("90+1’"), teamName("法国"), t("最后一攻偏出，宇宙把门悄悄关上。")]),
       transitionLine("koqf-final", [systemTag("终场"), t("哨响  平行宇宙开始认真了")]),
     ],
@@ -294,7 +323,7 @@ const KNOCKOUT_ROUNDS = [
       transitionLine("kosf-63", [time("63’"), teamName("阿根廷"), t("连续射门，"), playerName("门将"), t("像开了弹窗拦截。")]),
       transitionLine("kosf-71", [time("71’"), playerName("中场"), t("铲断成功，解说席把音量往上推了一格。")]),
       transitionLine("kosf-78", [time("78’"), teamName("阿根廷"), t("换人提速，"), teamName("中国队"), t("选择继续相信玄学。")]),
-      transitionLine("kosf-84", [time("84’"), teamName("中国队"), t("反击低射破门，比分写成"), score("2:1"), t("。")]),
+      transitionLine("kosf-84", [time("84’"), teamName("中国队"), t("反击低射破门，比分写成"), score("2:1")]),
       transitionLine("kosf-94", [time("90+4’"), t("最后一次解围飞到看台，球迷接住了命运。")]),
       transitionLine("kosf-final", [systemTag("终场"), t("哨响  决赛门票被硬塞进兜里")]),
     ],
@@ -436,6 +465,24 @@ function randomAttributes() {
     }
   }
   return attributesFromArray(values);
+}
+
+function isPresetActive(values, preset) {
+  return preset.values.every((value, index) => values[ATTRIBUTES[index].key] === value);
+}
+
+function getVisibleMatchScore(round, visibleLines) {
+  const scoredLine = [...visibleLines].reverse().find((line) => Array.isArray(line.scoreState));
+  if (scoredLine) return scoredLine.scoreState;
+  const scoredPart = [...visibleLines]
+    .reverse()
+    .flatMap((line) => [...line.parts].reverse())
+    .find((item) => item.kind === "score" && /\d+\s*:\s*\d+/.test(item.text));
+  if (scoredPart) {
+    const [, home, away] = scoredPart.text.match(/(\d+)\s*:\s*(\d+)/) || [];
+    if (home !== undefined && away !== undefined) return [Number(home), Number(away)];
+  }
+  return round?.scorePreview || [0, 0];
 }
 
 function getInitialScreen() {
@@ -629,7 +676,11 @@ function AttributeScreen({ values, setValues, onNext, onBack }) {
         </div>
         <div className="preset-row">
           {PRESETS.map((preset) => (
-            <button key={preset.name} onClick={() => setValues(attributesFromArray(preset.values))}>
+            <button
+              className={cx(isPresetActive(values, preset) && "is-active")}
+              key={preset.name}
+              onClick={() => setValues(attributesFromArray(preset.values))}
+            >
               {preset.name}
             </button>
           ))}
@@ -656,7 +707,7 @@ function ReplacementScreen({ selected, setSelected, onNext, onBack }) {
             <div className="group-id">{group.id}组</div>
             <div className="team-grid">
               {group.teams.map((team) => {
-                const active = selected.group === group.id && selected.name === team.name;
+                const active = selected?.group === group.id && selected?.name === team.name;
                 return (
                   <button
                     className={cx("team-pill", active && "selected-team")}
@@ -678,9 +729,9 @@ function ReplacementScreen({ selected, setSelected, onNext, onBack }) {
           </div>
         ))}
       </div>
-      <div className="replace-cta">
-        <span>中国队将替换  <b>{selected.name}</b></span>
-        <button className="primary-button" onClick={onNext}>
+      <div className={cx("replace-cta", !selected && "is-empty")}>
+        <span>{selected ? <>中国队将替换  <b>{selected.name}</b></> : "先挑一个倒霉蛋"}</span>
+        <button className="primary-button" disabled={!selected} onClick={onNext}>
           进入平行宇宙 <ArrowRight size={20} />
         </button>
       </div>
@@ -695,9 +746,9 @@ function TransitionScreen({ selectedTeam, gameRun, onDone }) {
   const revealTimerRef = useRef(null);
   const doneTimerRef = useRef(null);
   const transitionLines = useMemo(() => gameRun?.transitionLines || getTransitionLines(selectedTeam), [gameRun, selectedTeam]);
-  const revealTarget = Math.min(TRANSITION_REVEAL_COUNT, transitionLines.length);
+  const revealTarget = transitionLines.length;
   const displayLines = useMemo(
-    () => transitionLines.slice(0, visibleCount).slice(-9).reverse(),
+    () => transitionLines.slice(0, visibleCount).slice(-10).reverse(),
     [transitionLines, visibleCount],
   );
 
@@ -870,7 +921,11 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
             <span className="table-team">
               <FlagIcon code={row.team.code} />
               <strong>{row.team.name}</strong>
-              {row.china ? <em className="line-badge">压线活了</em> : null}
+              {row.china ? (
+                <em className={cx("line-badge", !chinaAdvanced && "is-out")}>
+                  {chinaAdvanced ? "压线活了" : "小组出局"}
+                </em>
+              ) : null}
             </span>
             <span>{row.record}</span>
             <span>{row.goals}</span>
@@ -899,17 +954,17 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
         ))}
       </section>
       <button className="primary-button group-next-button" onClick={onNext}>
-        进入 32 强：梦还没醒 <ArrowRight size={20} />
+        {chinaAdvanced ? "进入 32 强：梦还没醒" : "查看本局结算"} <ArrowRight size={20} />
       </button>
     </PageShell>
   );
 }
 
-function AdvancementBoard({ stage }) {
+function AdvancementBoard({ stage, revealed = true }) {
   if (stage.podium) {
     const { champion, runnerUp, third } = stage.podium;
     return (
-      <div className="advancement-board champion-board">
+      <div className={cx("advancement-board champion-board", revealed && "is-revealed")}>
         <div className="champion-showcase">
           <div className="podium-side-card runner-up-card">
             <span>亚军</span>
@@ -938,7 +993,7 @@ function AdvancementBoard({ stage }) {
   if (stage.teams.length === 2) {
     const [home, away] = stage.teams;
     return (
-      <div className="advancement-board compact-board final-duel-board">
+      <div className={cx("advancement-board compact-board final-duel-board", revealed && "is-revealed")}>
         <div className="duel-lock-strip">
           <span>本轮过关</span>
           <strong><FlagIcon code={home.code} /> {home.name}</strong>
@@ -965,7 +1020,7 @@ function AdvancementBoard({ stage }) {
   }
 
   return (
-    <div className={cx("advancement-board", stage.teams.length <= 8 && "compact-board", `stage-${stage.teams.length}`)}>
+    <div className={cx("advancement-board", revealed && "is-revealed", stage.teams.length <= 8 && "compact-board", `stage-${stage.teams.length}`)}>
       <div className="advance-focus">
         <span>本轮过关</span>
         <strong><FlagIcon code="cn" /> 中国队</strong>
@@ -976,8 +1031,12 @@ function AdvancementBoard({ stage }) {
         )}
       </div>
       <div className="advance-grid">
-        {stage.teams.map((item) => (
-          <div className={cx("advance-team-card", item.code === "cn" && "china-advance", item.code === stage.nextCode && "next-advance")} key={item.code}>
+        {stage.teams.map((item, index) => (
+          <div
+            className={cx("advance-team-card", item.code === "cn" && "china-advance", item.code === stage.nextCode && "next-advance")}
+            key={item.code}
+            style={{ "--seat-index": index }}
+          >
             <FlagIcon code={item.code} />
             <span>{getTeamDisplayName(item.name)}</span>
           </div>
@@ -997,6 +1056,8 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
   const reportRef = useRef(null);
   const visibleReportCountForRound = reportRoundIndex === roundIndex ? visibleReportCount : 1;
   const reportComplete = visibleReportCountForRound >= round.commentary.length;
+  const visibleReportLines = round.commentary.slice(0, visibleReportCountForRound);
+  const displayedScore = reportComplete ? round.score : getVisibleMatchScore(round, visibleReportLines);
 
   useEffect(() => {
     let nextCount = 1;
@@ -1012,6 +1073,12 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
 
     return () => window.clearInterval(timer);
   }, [roundIndex, round.commentary.length]);
+
+  useEffect(() => {
+    const scroller = reportRef.current?.querySelector(".commentary-scroll");
+    if (!scroller) return;
+    scroller.scrollTop = scroller.scrollHeight;
+  }, [visibleReportCountForRound, roundIndex]);
 
   useGSAP(
     () => {
@@ -1036,7 +1103,7 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
   return (
     <PageShell className="knockout-screen">
       <TopBar title={round.title} onBack={onBack} right="music" />
-      <div className="knockout-result">
+      <div className={cx("knockout-result", reportComplete && "is-complete")}>
         <span className="mini-label">淘汰赛  单场定生死</span>
         <div className="score-line knockout-score-card">
           <div className="knockout-team is-home">
@@ -1044,39 +1111,47 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
             <strong>中国队</strong>
           </div>
           <div className="score-stack">
-            <b>{round.score[0]} : {round.score[1]}</b>
-            <span><Trophy size={14} /> {round.status}</span>
+            <b>{displayedScore[0]} : {displayedScore[1]}</b>
           </div>
           <div className="knockout-team is-away">
             <FlagIcon code={round.opponent.code} className="score-flag" />
             <strong>{round.opponent.name}</strong>
           </div>
         </div>
-        <p>这球踢得不一定科学  但比分很讲礼貌</p>
+        {reportComplete ? <span className="knockout-status"><Trophy size={14} /> {round.status}</span> : null}
+        {reportComplete ? <p>这球踢得不一定科学  但比分很讲礼貌</p> : null}
       </div>
       <section className="data-panel commentary-panel" ref={reportRef} aria-live="polite">
         <header><span></span>本场战报<i></i></header>
-        {round.commentary.slice(0, visibleReportCountForRound).map((line, index) => {
-          return (
-            <div
-              className={cx(
-                "comment-line",
-                index >= round.commentary.length - 1 && "highlight",
-                index === visibleReportCountForRound - 1 && "is-new",
-              )}
-              key={line.id}
-            >
-              {renderRichParts(line)}
-            </div>
-          );
-        })}
+        <div className="commentary-scroll">
+          {visibleReportLines.map((line, index) => {
+            return (
+              <div
+                className={cx(
+                  "comment-line",
+                  index >= round.commentary.length - 1 && "highlight",
+                  index === visibleReportCountForRound - 1 && "is-new",
+                )}
+                key={line.id}
+              >
+                {renderRichParts(line)}
+              </div>
+            );
+          })}
+        </div>
       </section>
       <section className="bracket-section advancement-section">
         <div className="section-title-row">
           <h3><Trophy size={17} /> {advancementStage.title}</h3>
-          <span>{advancementStage.hint}</span>
+          <span>{reportComplete ? advancementStage.hint : "席位等待终场"}</span>
         </div>
-        <AdvancementBoard stage={advancementStage} />
+        {reportComplete ? (
+          <AdvancementBoard stage={advancementStage} revealed />
+        ) : (
+          <div className="advancement-board pending-board">
+            <span>席位等待终场</span>
+          </div>
+        )}
       </section>
       <button
         className={cx("primary-button sticky-button", !reportComplete && "is-reporting")}
@@ -1325,8 +1400,8 @@ function MiraclePathLine({ row }) {
         <strong>
           <FlagIcon code="cn" /> <b>中国队</b>
           <i>{row.verb}</i>
-          <FlagIcon code={row.targetCode} /> {row.targetName}
-          <i>的名额</i>
+          <FlagIcon code={row.targetCode} /> <span className="path-team-name">{row.targetName}</span>
+          <i>名额</i>
         </strong>
       </>
     );
@@ -1348,7 +1423,7 @@ function MiraclePathLine({ row }) {
         <span className={cx("path-score", row.lost && "lost-score")}>
           <em>{homeScore}</em><i>:</i><em>{awayScore}</em>
         </span>
-        <FlagIcon code={row.opponentCode} /> {row.opponentName}
+        <FlagIcon code={row.opponentCode} /> <span className="path-team-name">{row.opponentName}</span>
       </strong>
     </>
   );
@@ -1456,7 +1531,7 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
             style={{ "--character-display-scale": String(settlementCharacter.displayScale || 1) }}
           />
         </div>
-        <section className={cx("path-panel", isFailure && "failure-path-panel")}>
+        <section className={cx("path-panel", isFailure && "failure-path-panel", `path-count-${Math.min(pathRows.length, 7)}`)}>
           <header><Trophy size={18} /> 奇迹路径</header>
           {pathRows.map((row) => (
             <div className={cx("path-row", `path-row-${row.type}`, row.final && "final-row")} key={row.label}>
@@ -1506,7 +1581,7 @@ export function App() {
   const [screen, setScreen] = useState(getInitialScreen);
   const [, setMusicOn] = useState(true);
   const [attributes, setAttributes] = useState(attributesFromArray([5, 5, 5, 5, 5, 5]));
-  const [selectedTeam, setSelectedTeam] = useState({ code: "jp", flag: "🇯🇵", name: "日本", group: "F" });
+  const [selectedTeam, setSelectedTeam] = useState(null);
   const [gameRun, setGameRun] = useState(null);
   const [roundIndex, setRoundIndex] = useState(0);
   const appRef = useRef(null);
@@ -1514,6 +1589,7 @@ export function App() {
   const go = useCallback((nextScreen) => setScreen(nextScreen), []);
 
   const startSimulation = useCallback(() => {
+    if (!selectedTeam) return;
     const run = simulateWorldCupRun({
       attributes,
       selectedTeam,
@@ -1528,7 +1604,7 @@ export function App() {
   const restart = () => {
     track("restart", { from: screen });
     setAttributes(attributesFromArray([5, 5, 5, 5, 5, 5]));
-    setSelectedTeam({ code: "jp", flag: "🇯🇵", name: "日本", group: "F" });
+    setSelectedTeam(null);
     setGameRun(null);
     setRoundIndex(0);
     setScreen("home");
@@ -1601,10 +1677,10 @@ export function App() {
             onBack={() => go("attributes")}
           />
         ) : null}
-        {screen === "transition" ? <TransitionScreen selectedTeam={selectedTeam} gameRun={gameRun} onDone={() => go("group")} /> : null}
+        {screen === "transition" ? <TransitionScreen selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM} gameRun={gameRun} onDone={() => go("group")} /> : null}
         {screen === "group" ? (
           <GroupOverviewScreen
-            selectedTeam={selectedTeam}
+            selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM}
             gameRun={gameRun}
             onNext={() => go(gameRun?.knockoutRounds?.length ? "knockout" : "failure")}
             onBack={() => go("replace")}
@@ -1620,10 +1696,10 @@ export function App() {
           />
         ) : null}
         {screen === "final" ? (
-          <FinalScreen values={attributes} selectedTeam={selectedTeam} gameRun={gameRun} onRestart={restart} onBack={() => go("knockout")} />
+          <FinalScreen values={attributes} selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM} gameRun={gameRun} onRestart={restart} onBack={() => go("knockout")} />
         ) : null}
         {screen === "failure" ? (
-          <FinalScreen values={attributes} selectedTeam={selectedTeam} gameRun={gameRun} result="failure" onRestart={restart} onBack={() => go(gameRun?.knockoutRounds?.length ? "knockout" : "group")} />
+          <FinalScreen values={attributes} selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM} gameRun={gameRun} result="failure" onRestart={restart} onBack={() => go(gameRun?.knockoutRounds?.length ? "knockout" : "group")} />
         ) : null}
       </div>
     </main>

@@ -2,6 +2,8 @@
 comet_change: build-game-simulation-engine
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-16-build-game-simulation-engine
+status: final
 ---
 
 # 游戏模拟引擎技术设计
