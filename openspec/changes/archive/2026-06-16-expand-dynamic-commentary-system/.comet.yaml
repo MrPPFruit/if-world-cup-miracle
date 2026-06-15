@@ -10,5 +10,5 @@ verification_report: docs/superpowers/reports/2026-06-16-expand-dynamic-commenta
 branch_status: handled
 verified_at: 2026-06-16
 archived: true
-handoff_context: openspec/changes/expand-dynamic-commentary-system/.comet/handoff/design-context.json
+handoff_context: openspec/changes/archive/2026-06-16-expand-dynamic-commentary-system/.comet/handoff/design-context.json
 handoff_hash: c260249610d430d95baf151b6f8480a2adc3c70e4d696acc5c7addb79de1b6c1
