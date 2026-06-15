@@ -90,6 +90,16 @@ export const TEAMS = [
   team({ code: "pa", name: "巴拿马", group: "L", slot: 4, fifaRank: 34, fifaPoints: 1539.16, baseRating: 74 }),
 ];
 
+export const CHINA_TEAM = team({
+  code: "cn",
+  name: "中国队",
+  group: null,
+  slot: 0,
+  fifaRank: 91,
+  baseRating: 58,
+  tags: ["china"],
+});
+
 export const GROUPS = Array.from({ length: 12 }, (_, index) => {
   const id = String.fromCharCode("A".charCodeAt(0) + index);
   return {
