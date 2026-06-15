@@ -452,6 +452,11 @@ function getFlagSrc(code) {
   return `/assets/flags/${code}.svg`;
 }
 
+function didChinaWinMatch(match) {
+  if (match?.penalties) return match.penalties[0] > match.penalties[1];
+  return match?.chinaGoals > match?.opponentGoals;
+}
+
 function FlagIcon({ code, className = "" }) {
   return <img className={cx("flag-icon", className)} src={getFlagSrc(code)} alt="" />;
 }
@@ -1550,7 +1555,7 @@ export function App() {
         run: gameRun.id,
         round: round.round || round.title,
         opponentCode: round.opponent.code,
-        result: round.match?.chinaGoals > round.match?.opponentGoals ? "win" : "loss",
+        result: didChinaWinMatch(round.match) ? "win" : "loss",
       });
     }
 

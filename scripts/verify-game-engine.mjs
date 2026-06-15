@@ -80,7 +80,22 @@ assert.equal(zeroHiddenRun.result, "champion");
 assert.equal(zeroHiddenRun.isZeroHidden, true);
 assert.equal(zeroHiddenRun.settlement.defeatedOpponentCode, "jp");
 assert.equal(zeroHiddenRun.knockoutRounds.at(-1).opponent.code, "jp");
-assert.equal(zeroHiddenRun.pathRows.at(-1).score, "1:0");
+assert.ok(
+  zeroHiddenRun.knockoutRounds.at(-1).match.penalties?.[0] > zeroHiddenRun.knockoutRounds.at(-1).match.penalties?.[1] ||
+    zeroHiddenRun.knockoutRounds.at(-1).match.chinaGoals > zeroHiddenRun.knockoutRounds.at(-1).match.opponentGoals,
+);
+
+const zeroHiddenScoreSamples = new Set(
+  Array.from({ length: 8 }, (_, index) => {
+    const run = simulateWorldCupRun({
+      attributes: ZERO_LUCK_CHAMPION_ATTRIBUTES,
+      selectedTeam: getTeamByCode("nl"),
+      seed: `verify-zero-score-variance-${index}`,
+    });
+    return run.pathRows.map((row) => (row.type === "match" ? `${row.label}:${row.score}` : "")).join("|");
+  }),
+);
+assert.ok(zeroHiddenScoreSamples.size >= 3, `score sample size=${zeroHiddenScoreSamples.size}`);
 
 const zeroWrongRun = simulateWorldCupRun({
   attributes: ZERO_LUCK_CHAMPION_ATTRIBUTES,

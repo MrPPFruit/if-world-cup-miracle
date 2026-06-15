@@ -77,18 +77,63 @@ function createGroupMatch({ home, away, attributes, stage, rng }) {
   };
 }
 
-function getFixedZeroGroupMatch(home, away, zeroHiddenRoute) {
+function getFixedOutcome(chinaGoals, opponentGoals, penalties = null) {
+  if (penalties) return penalties[0] > penalties[1] ? "win" : "loss";
+  if (chinaGoals > opponentGoals) return "win";
+  if (chinaGoals < opponentGoals) return "loss";
+  return "draw";
+}
+
+function createForcedScore({ chinaPower, opponentPower, rng, outcome, allowPenalties = false }) {
+  if (allowPenalties && outcome !== "draw" && rng.next() < 0.28) {
+    const drawGoals = rng.int(0, 2);
+    const winnerPenalty = rng.int(3, 5);
+    const loserPenalty = rng.int(Math.max(0, winnerPenalty - 3), winnerPenalty - 1);
+    return {
+      chinaGoals: drawGoals,
+      opponentGoals: drawGoals,
+      penalties: outcome === "win" ? [winnerPenalty, loserPenalty] : [loserPenalty, winnerPenalty],
+    };
+  }
+
+  let [chinaGoals, opponentGoals] = scoreMatch(chinaPower, opponentPower, rng);
+
+  if (outcome === "win" && chinaGoals <= opponentGoals) {
+    opponentGoals = Math.min(4, opponentGoals);
+    chinaGoals = opponentGoals + rng.int(1, Math.min(2, 5 - opponentGoals));
+  }
+  if (outcome === "loss" && chinaGoals >= opponentGoals) {
+    chinaGoals = Math.min(4, chinaGoals);
+    opponentGoals = chinaGoals + rng.int(1, Math.min(2, 5 - chinaGoals));
+  }
+  if (outcome === "draw") {
+    const drawGoals = Math.min(3, Math.max(0, Math.round((chinaGoals + opponentGoals) / 2)));
+    chinaGoals = drawGoals;
+    opponentGoals = drawGoals;
+  }
+
+  return { chinaGoals, opponentGoals };
+}
+
+function getFixedZeroGroupMatch(home, away, attributes, rng, zeroHiddenRoute) {
   const chinaIsHome = home.code === CHINA_CODE;
   const opponent = chinaIsHome ? away : home;
   const fixed = zeroHiddenRoute?.groupResults?.find((match) => match.opponentCode === opponent.code);
   if (!fixed) return null;
+  const chinaPower = getChinaMatchPower(attributes, { stage: "GROUP", opponentRating: opponent.baseRating });
+  const score = createForcedScore({
+    chinaPower,
+    opponentPower: opponent.baseRating,
+    rng,
+    outcome: getFixedOutcome(fixed.chinaGoals, fixed.opponentGoals),
+  });
 
   return {
     id: `zero-group-${opponent.code}`,
     home,
     away,
-    homeGoals: chinaIsHome ? fixed.chinaGoals : fixed.opponentGoals,
-    awayGoals: chinaIsHome ? fixed.opponentGoals : fixed.chinaGoals,
+    homeGoals: chinaIsHome ? score.chinaGoals : score.opponentGoals,
+    awayGoals: chinaIsHome ? score.opponentGoals : score.chinaGoals,
     tone: fixed.tone,
   };
 }
@@ -128,7 +173,7 @@ function simulateGroup(group, { attributes, rng, replacedTeam, willChampion, zer
     let match = null;
 
     if (group.id === replacedTeam.group && hasChina && zeroHiddenRoute) {
-      match = getFixedZeroGroupMatch(home, away, zeroHiddenRoute);
+      match = getFixedZeroGroupMatch(home, away, attributes, rng, zeroHiddenRoute);
     }
     if (!match && group.id === replacedTeam.group && hasChina && willChampion) {
       match = createChampionGroupMatch({ home, away, attributes, rng, index: chinaMatchIndex });
@@ -196,14 +241,22 @@ function getFallbackChampionRoute(advancers, replacedTeam, rng) {
 
 function createKnockoutMatch({ roundMeta, opponent, attributes, rng, forceWin, fixed }) {
   if (fixed) {
+    const chinaPower = getChinaMatchPower(attributes, { stage: roundMeta.key, opponentRating: opponent.baseRating });
+    const score = createForcedScore({
+      chinaPower,
+      opponentPower: opponent.baseRating,
+      rng,
+      outcome: getFixedOutcome(fixed.chinaGoals, fixed.opponentGoals, fixed.penalties),
+      allowPenalties: true,
+    });
     const match = {
       id: `zero-${roundMeta.key}`,
       round: roundMeta.key,
       label: roundMeta.label,
       opponent,
-      chinaGoals: fixed.chinaGoals,
-      opponentGoals: fixed.opponentGoals,
-      penalties: fixed.penalties,
+      chinaGoals: score.chinaGoals,
+      opponentGoals: score.opponentGoals,
+      penalties: score.penalties,
       tone: fixed.tone,
     };
     return match;
