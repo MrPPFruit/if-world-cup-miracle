@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+.npm-cache/
+
+# build output
+dist/
+
+# local runtime and test artifacts
+test-results/
+tmp/
+*.log
+
+# local agent/design restoration working files
+AGENTS.md
+.clone-ui/
+.pixel-ui-restore/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# local npm cache config
+.npmrc
+
+# OS files
+.DS_Store

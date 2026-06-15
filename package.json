@@ -1,0 +1,23 @@
+{
+  "name": "if-world-cup-miracle",
+  "version": "0.0.0",
+  "description": "A mobile-first what-if World Cup miracle mini-game prototype.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/vite-safe-runner.mjs dev",
+    "build": "node scripts/vite-safe-runner.mjs build",
+    "preview": "node scripts/vite-safe-runner.mjs preview"
+  },
+  "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "@vitejs/plugin-react": "5.0.4",
+    "gsap": "^3.15.0",
+    "html-to-image": "^1.11.13",
+    "lucide-react": "^1.17.0",
+    "qrcode": "^1.5.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "vite": "6.4.2"
+  }
+}

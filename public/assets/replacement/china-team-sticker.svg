@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="44" viewBox="0 0 96 44" role="img" aria-label="中国队">
+  <defs>
+    <filter id="shadow" x="-16%" y="-24%" width="132%" height="154%">
+      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#22314d" flood-opacity=".18"/>
+    </filter>
+    <linearGradient id="paper" x1="0" x2="0" y1="0" y2="1">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#fff6f6"/>
+    </linearGradient>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="2" y="3" width="92" height="38" rx="9" fill="url(#paper)" stroke="#ffffff" stroke-width="4"/>
+    <rect x="5.5" y="6.5" width="85" height="31" rx="7" fill="none" stroke="#ffd9d9" stroke-width="1"/>
+    <rect x="12" y="13" width="24" height="18" rx="3" fill="#ee1c25"/>
+    <path d="M19.2 15.7l1 3h3.1l-2.5 1.8 1 3-2.6-1.9-2.5 1.9 1-3-2.5-1.8h3.1z" fill="#ffde00"/>
+    <circle cx="27.6" cy="17" r=".9" fill="#ffde00"/>
+    <circle cx="29.7" cy="20" r=".85" fill="#ffde00"/>
+    <circle cx="29.4" cy="23.8" r=".85" fill="#ffde00"/>
+    <circle cx="27.1" cy="27" r=".9" fill="#ffde00"/>
+    <text x="43" y="28" fill="#e0141c" font-family="MiSans, PingFang SC, Microsoft YaHei, sans-serif" font-size="16.2" font-weight="900" letter-spacing="0">中国队</text>
+  </g>
+</svg>
