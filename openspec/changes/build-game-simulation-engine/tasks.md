@@ -5,8 +5,8 @@
 
 ## 2. Simulation Engine
 
-- [ ] 2.1 Create `src/game/` team data, ranking snapshot metadata, group slots, ratings, and replacement tags.
-- [ ] 2.2 Create deterministic RNG, stable seed, score helpers, outcome probability bands, and zero-luck hidden route tables.
+- [x] 2.1 Create `src/game/` team data, ranking snapshot metadata, group slots, ratings, and replacement tags.
+- [x] 2.2 Create deterministic RNG, stable seed, score helpers, outcome probability bands, and zero-luck hidden route tables.
 - [ ] 2.3 Implement group and knockout simulation that outputs standings, China matches, advancement states, final achievement, settlement payload, and share-safe summary data.
 - [ ] 2.4 Implement attribute-weighted commentary generation with semantic rich parts and luck-based exaggeration.
 
