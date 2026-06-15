@@ -1,0 +1,14 @@
+workflow: full
+phase: archive
+build_mode: subagent-driven-development
+isolation: branch
+verify_mode: null
+design_doc: docs/superpowers/specs/2026-06-16-unique-group-commentary-design.md
+plan: null
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-06-16-ensure-unique-group-commentary-verify.md
+branch_status: handled
+verified_at: 2026-06-16
+archived: true
+handoff_context: openspec/changes/archive/2026-06-16-ensure-unique-group-commentary/.comet/handoff/design-context.json
+handoff_hash: 2d1a69c7b5c89fbba9686b29be744bb4ccd309dbb1ab33d11e01c1bfaccc561b

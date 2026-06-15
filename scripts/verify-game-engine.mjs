@@ -19,7 +19,7 @@ assert.equal(RANKING_SNAPSHOT.officialUpdate, "2026-06-11");
 assert.equal(TEAMS.length, 48);
 assert.equal(GROUPS.length, 12);
 assert.equal(new Set(TEAMS.map((team) => team.code)).size, 48);
-assert.equal(Object.keys(COMPACT_COPY_LIMITS).length, 6);
+assert.equal(Object.keys(COMPACT_COPY_LIMITS).length, 7);
 assert.deepEqual(Object.keys(ZERO_LUCK_CHAMPION_ATTRIBUTES), ATTRIBUTE_KEYS);
 assert.equal(ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.replacedTeamCode, "nl");
 assert.equal(ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.finalOpponentCode, "jp");
@@ -113,7 +113,49 @@ function assertCopyBudgets(run) {
   const copy = run.copy;
   assert.ok(copy, `${run.id} should include generated copy`);
   for (const [key, limit] of Object.entries(COMPACT_COPY_LIMITS)) {
+    if (key === "groupMatchDetail") continue;
     assert.ok(copy[key].length <= limit, `${key} too long: ${copy[key]}`);
+  }
+  assert.equal(copy.groupMatchDetails?.length, 3, `${run.id} should include three group match details`);
+  assert.equal(new Set(copy.groupMatchDetails).size, 3, `${run.id} group match details should be distinct`);
+  for (const detail of copy.groupMatchDetails) {
+    assert.ok(detail.length <= COMPACT_COPY_LIMITS.groupMatchDetail, `group match detail too long: ${detail}`);
+  }
+}
+
+function normalizeVisibleText(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function collectGeneratedFragmentsFromLines(lines) {
+  const fragments = [];
+  for (const line of lines || []) {
+    for (const item of line.parts || []) {
+      if (!["text", "system"].includes(item.kind)) continue;
+      const text = normalizeVisibleText(item.text);
+      if (text.length >= 6) fragments.push(text);
+    }
+  }
+  return fragments;
+}
+
+function assertNoDuplicateGeneratedCopy(run) {
+  const fragments = [
+    ...collectGeneratedFragmentsFromLines(run.transitionLines),
+    ...run.knockoutRounds.flatMap((round) => collectGeneratedFragmentsFromLines(round.commentary)),
+    run.copy.groupHeroTitle,
+    run.copy.groupHeroNote,
+    run.copy.groupMatchesNote,
+    ...(run.copy.groupMatchDetails || []),
+    run.copy.knockoutResultNote,
+    run.copy.advancementHint,
+    run.copy.settlementHeroNote,
+    run.copy.pathFinalNote,
+  ].map(normalizeVisibleText).filter((text) => text.length >= 6);
+  const seen = new Set();
+  for (const fragment of fragments) {
+    assert.equal(seen.has(fragment), false, `${run.id} duplicate generated copy: ${fragment}`);
+    seen.add(fragment);
   }
 }
 
@@ -178,6 +220,7 @@ assert.ok(
 );
 assertMatchCommentary(zeroHiddenRun);
 assertCopyBudgets(zeroHiddenRun);
+assertNoDuplicateGeneratedCopy(zeroHiddenRun);
 
 const zeroHiddenRunRepeat = simulateWorldCupRun({
   attributes: ZERO_LUCK_CHAMPION_ATTRIBUTES,
@@ -226,6 +269,7 @@ assert.equal(zeroWrongRun.settlement.defeatedOpponentCode, null);
 assert.ok(zeroWrongRun.settlement.failureReason);
 assertMatchCommentary(zeroWrongRun);
 assertCopyBudgets(zeroWrongRun);
+assertNoDuplicateGeneratedCopy(zeroWrongRun);
 
 const failureStageSamples = new Map();
 for (let index = 0; index < 700; index += 1) {
@@ -263,6 +307,25 @@ assert.ok(["champion", "failure"].includes(luckyRun.result));
 assert.ok(luckyRun.transitionLines.length >= 7);
 assertMatchCommentary(luckyRun);
 assertCopyBudgets(luckyRun);
+assertNoDuplicateGeneratedCopy(luckyRun);
+
+for (let index = 0; index < 36; index += 1) {
+  const team = TEAMS[index % TEAMS.length];
+  const run = simulateWorldCupRun({
+    attributes: {
+      attack: index % 11,
+      defense: (index * 2) % 11,
+      midfield: (index * 3) % 11,
+      stamina: (index * 5) % 11,
+      tactics: (index * 7) % 11,
+      luck: (index * 4) % 11,
+    },
+    selectedTeam: team,
+    seed: `verify-copy-uniqueness-${index}`,
+  });
+  assertCopyBudgets(run);
+  assertNoDuplicateGeneratedCopy(run);
+}
 
 const luckyRunRepeat = simulateWorldCupRun({
   attributes: { attack: 5, defense: 5, midfield: 5, stamina: 5, tactics: 0, luck: 10 },

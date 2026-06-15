@@ -882,16 +882,18 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
         group.id === selectedGroup.id ? `中国队 / ${opponentA.name}` : GROUP_ADVANCE_PREVIEW[group.id],
       ]);
   const chinaMatches = gameRun?.chinaMatches?.length
-    ? gameRun.chinaMatches.map((match) => ({
+    ? gameRun.chinaMatches.map((match, index) => ({
         score: `${match.chinaGoals}:${match.opponentGoals}`,
         opponent: match.opponent,
+        detail: gameRun.copy?.groupMatchDetails?.[index] || "",
       }))
     : [
-        { score: "1:2", opponent: opponentA },
-        { score: "2:1", opponent: opponentC },
-        { score: "1:1", opponent: opponentB },
+        { score: "1:2", opponent: opponentA, detail: "小负开局  但积分榜还没关门" },
+        { score: "2:1", opponent: opponentC, detail: "第二场续命  梦开始有点响动" },
+        { score: "1:1", opponent: opponentB, detail: "最后一场守住  算分器终于点头" },
       ];
   const runCopy = gameRun?.copy || {};
+  const hasGroupMatchDetails = chinaMatches.some((match) => Boolean(match.detail));
 
   return (
     <PageShell className="group-screen">
@@ -941,9 +943,12 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
             <span className="match-team"><FlagIcon code="cn" /> 中国队</span>
             <strong>{match.score}</strong>
             <span className="match-team match-team-away">{match.opponent.name} <FlagIcon code={match.opponent.code} /></span>
+            {match.detail ? <small>{match.detail}</small> : null}
           </div>
         ))}
-        <p>{runCopy.groupMatchesNote || (chinaAdvanced ? "输得有尊严  赢得很突然  平得刚刚好" : "算分器关机  但段子还在")}</p>
+        {!hasGroupMatchDetails ? (
+          <p>{runCopy.groupMatchesNote || (chinaAdvanced ? "输得有尊严  赢得很突然  平得刚刚好" : "算分器关机  但段子还在")}</p>
+        ) : null}
       </section>
       <section className="other-groups">
         <header><span></span>晋级队伍速览<i></i></header>

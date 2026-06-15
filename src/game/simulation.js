@@ -1,4 +1,4 @@
-import { generateMatchCommentary, generateRunCopy, generateTransitionCommentary, getFailureReason, makeScoreText } from "./commentary.js";
+import { createCommentaryLedger, generateMatchCommentary, generateRunCopy, generateTransitionCommentary, getFailureReason, makeScoreText } from "./commentary.js";
 import {
   BRACKET_MATCHES,
   KNOCKOUT_ROUND_ORDER,
@@ -406,7 +406,7 @@ function getNextChinaOpponent(matchId, winners) {
   return winners.get(siblingMatchId) || null;
 }
 
-function simulateKnockout({ attributes, rng, groupResults, advancers, runPlan, zeroHiddenRoute }) {
+function simulateKnockout({ attributes, rng, groupResults, advancers, runPlan, zeroHiddenRoute, commentaryLedger = null }) {
   if (!advancers.some((team) => team.code === CHINA_CODE)) {
     return { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "groupExit" };
   }
@@ -473,6 +473,7 @@ function simulateKnockout({ attributes, rng, groupResults, advancers, runPlan, z
             attributes,
             roundLabel: meta.label,
             rng: createRng(`commentary:${roundKey}:${opponent.code}:${match.chinaGoals}:${match.opponentGoals}:${JSON.stringify(attributes)}`),
+            ledger: commentaryLedger,
           }),
         },
       };
@@ -571,10 +572,6 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
   const chinaGroup = groupResults.find((group) => group.id === replacedTeam.group);
   const groupAdvancers = getAdvancers(groupResults);
   const chinaAdvanced = groupAdvancers.some((team) => team.code === CHINA_CODE);
-  const knockout = chinaAdvanced && runPlan.failureStage !== "GROUP"
-    ? simulateKnockout({ attributes, rng, groupResults, advancers: groupAdvancers, runPlan, zeroHiddenRoute })
-    : { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "groupExit" };
-  const result = runPlan.outcome === "champion" && knockout.result === "champion" ? "champion" : "failure";
   const chinaMatches = chinaGroup.matches
     .filter((match) => match.home.code === CHINA_CODE || match.away.code === CHINA_CODE)
     .map((match) => {
@@ -587,6 +584,12 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
         opponentGoals: chinaHome ? match.awayGoals : match.homeGoals,
       };
     });
+  const transitionLines = generateTransitionCommentary({ selectedTeam: replacedTeam, groupMatches: chinaMatches, attributes });
+  const commentaryLedger = createCommentaryLedger(transitionLines);
+  const knockout = chinaAdvanced && runPlan.failureStage !== "GROUP"
+    ? simulateKnockout({ attributes, rng, groupResults, advancers: groupAdvancers, runPlan, zeroHiddenRoute, commentaryLedger })
+    : { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "groupExit" };
+  const result = runPlan.outcome === "champion" && knockout.result === "champion" ? "champion" : "failure";
 
   const copy = generateRunCopy({
     result,
@@ -596,6 +599,10 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
     knockout,
     attributes,
     rng: createRng(`run-copy:${seed}:${replacedTeam.code}:${result}:${JSON.stringify(attributes || {})}`),
+    initialLines: [
+      ...transitionLines,
+      ...knockout.rounds.flatMap((round) => round.commentary || []),
+    ],
   });
 
   return {
@@ -616,7 +623,7 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
     chinaGroup,
     chinaMatches,
     groupAdvancers,
-    transitionLines: generateTransitionCommentary({ selectedTeam: replacedTeam, groupMatches: chinaMatches, attributes }),
+    transitionLines,
     knockoutRounds: knockout.rounds,
     advancementStages: knockout.advancementStages,
     pathRows: createPathRows({ selectedTeam: replacedTeam, groupResult: chinaGroup, knockout }),

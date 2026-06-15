@@ -2132,7 +2132,7 @@ button {
 }
 
 .group-matches-panel {
-  height: 153px;
+  height: 178px;
 }
 
 .group-matches-panel header {
@@ -2140,20 +2140,21 @@ button {
 }
 
 .compact-panel .group-match-row {
-  min-height: 28px;
+  min-height: 38px;
+  padding: 3px 0 4px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr);
   align-items: center;
   border-top: 1px solid #e3edf8;
   color: #121d34;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 850;
 }
 
 .group-match-row strong {
   color: #101a32;
   text-align: center;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
   font-weight: 1000;
 }
@@ -2166,12 +2167,26 @@ button {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
 }
 
 .match-team-away {
   justify-content: flex-end;
+}
+
+.group-match-row small {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 2px;
+  color: #60708c;
+  font-size: 11px;
+  line-height: 1.12;
+  font-weight: 820;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .group-matches-panel p {

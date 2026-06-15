@@ -1,0 +1,14 @@
+{
+  "change": "ensure-unique-group-commentary",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "2d1a69c7b5c89fbba9686b29be744bb4ccd309dbb1ab33d11e01c1bfaccc561b",
+  "files": [
+    { "path": "openspec/changes/ensure-unique-group-commentary/proposal.md", "sha256": "4dbeea934071e4f8666d4a933778233e2b97b1b810359d69e75cde357e140618" },
+    { "path": "openspec/changes/ensure-unique-group-commentary/design.md", "sha256": "9174405ecb4343e7663d09987a84ddaa9be5b85eb9973f410a0a0d4653ca7924" },
+    { "path": "openspec/changes/ensure-unique-group-commentary/tasks.md", "sha256": "2553f8a0e199d4631b4685a368396dae377d3c75742c47ff2a32e17eb3571ab2" },
+    { "path": "openspec/changes/ensure-unique-group-commentary/specs/dynamic-commentary/spec.md", "sha256": "5d0988c2a1cafc247fbddfc8506756f2104c6c63a906d55b2b6d2796dac9af53" }
+  ]
+}
