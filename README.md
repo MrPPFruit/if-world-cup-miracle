@@ -34,6 +34,31 @@ npm run build
 
 构建产物会输出到 `dist/`。
 
+## 生产部署
+
+正式访问域名是 `https://game.ppserver.xyz`。当前链路为 Cloudflare DNS 到腾讯云 CDN（中国境外）到腾讯云 COS 香港 Bucket 静态网站。
+
+部署时只上传 `dist/` 里的内容到 COS Bucket 根目录，正确结构是：
+
+```text
+index.html
+assets/
+__track/
+```
+
+不要上传 `src/`、`.env`、`.env.local`、`node_modules/`、设计源文件、密钥或私密配置。Cloudflare 中 `game.ppserver.xyz` 的 CNAME 指向 `game.ppserver.xyz.cdn.dnsv1.com`，必须保持 DNS only 灰色云朵，不要开启橙色云代理。
+
+生产构建显式关闭 sourcemap。发布前运行：
+
+```bash
+npm run build
+npm run verify:static
+```
+
+确认 `dist/index.html` 存在、没有 `dist/dist/index.html`、`dist/__track/pixel.gif` 存在，并且 `dist/assets/` 下没有 `.map` 文件。
+
+第一版埋点只使用 CDN 日志。前端会请求 `/__track/pixel.gif` 携带匿名会话参数，不接友盟、百度统计、数据库或自建后端。埋点参数不得包含手机号、微信号、真实姓名、精确定位、身份证、邮箱、密钥或管理员口令。
+
 ## 技术栈
 
 - React 19

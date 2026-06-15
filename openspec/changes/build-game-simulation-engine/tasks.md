@@ -1,7 +1,7 @@
 ## 1. Project Contracts
 
-- [ ] 1.1 Record durable game logic, settlement character, deployment, and telemetry decisions in project docs.
-- [ ] 1.2 Configure Vite production build for static deployment safety and add the CDN telemetry pixel asset.
+- [x] 1.1 Record durable game logic, settlement character, deployment, and telemetry decisions in project docs.
+- [x] 1.2 Configure Vite production build for static deployment safety and add the CDN telemetry pixel asset.
 
 ## 2. Simulation Engine
 

@@ -7,4 +7,7 @@ export default {
       clientFiles: ["./src/main.jsx"],
     },
   },
+  build: {
+    sourcemap: false,
+  },
 };
