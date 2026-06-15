@@ -1,0 +1,15 @@
+{
+  "change": "build-game-simulation-engine",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "00dd33c13c00e6504b87c268e56b9c776679711c11e19e309278c6f3a4aa613c",
+  "files": [
+    { "path": "openspec/changes/build-game-simulation-engine/proposal.md", "sha256": "7f577750056d314f4aab06dffdee002e776067f36a632293fe315164fb8a5861" },
+    { "path": "openspec/changes/build-game-simulation-engine/design.md", "sha256": "5873a853c19c82ca4682beb691e76570ea3e8cc7dc516890d75b2ed6b08d77ab" },
+    { "path": "openspec/changes/build-game-simulation-engine/tasks.md", "sha256": "17e447ab20e106b0e668e2e73ad562189e30c1a998d057d3c096053d14551483" },
+    { "path": "openspec/changes/build-game-simulation-engine/specs/game-simulation/spec.md", "sha256": "c185c72e95fabdb2ec0c5df43e0be4e6a14b01450752ee0a057674ad38a59aa7" },
+    { "path": "openspec/changes/build-game-simulation-engine/specs/static-deployment-telemetry/spec.md", "sha256": "ef2fadf0f93a792cb4167b3b22cf1c60594f2e9ddcd0204b33294055fdc1ca63" }
+  ]
+}
