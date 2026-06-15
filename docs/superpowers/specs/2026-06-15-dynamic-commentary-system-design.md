@@ -2,6 +2,8 @@
 comet_change: expand-dynamic-commentary-system
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-16-expand-dynamic-commentary-system
+status: final
 ---
 
 # Dynamic Commentary System Design

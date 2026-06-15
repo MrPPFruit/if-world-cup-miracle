@@ -1,4 +1,10 @@
+---
+archived-with: 2026-06-16-expand-dynamic-commentary-system
+status: final
+---
 # Dynamic Commentary System Implementation Plan
+
+base-ref: 91aa60102544ab7f1f924ef014c62facfe2a9763
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
