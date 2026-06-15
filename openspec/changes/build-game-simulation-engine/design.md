@@ -33,8 +33,10 @@ The product constraints are strict: no backend, no database, no login, no long-t
 
 2. **Use outcome-first simulation with explainable backfill.**
    - At game start, the engine determines the final achievement from attributes, replacement difficulty, rating path, and luck.
-   - The engine then generates group standings, knockout opponents, scores, report rows, advancement board state, and settlement copy consistent with that achievement.
+   - The engine stores that decision in a `RunPlan`: champion runs have no failure stage; failure runs first choose `GROUP`, `R32`, `R16`, `QF`, `SF`, or `FINAL`.
+   - The engine then derives group advancement, official-bracket knockout opponents, per-match win/loss outcomes, scores, report rows, advancement board state, and settlement copy in that order.
    - This gives product-level control over champion/failure rates while still producing realistic-looking football output.
+   - Scores and commentary are randomized only after the higher-level outcome is fixed, so local drama cannot contradict the global result.
 
 3. **Model luck separately from paper strength.**
    - Non-luck attributes form China skill and choose report/event pools.

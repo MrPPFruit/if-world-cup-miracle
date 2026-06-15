@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createBracketSlotMap, getFirstMeetingMatchId, getTeamSlot, isLegalFinalPair } from "../src/game/bracket.js";
 import { ATTRIBUTE_KEYS, ZERO_LUCK_CHAMPION_ATTRIBUTES, championChance, expectedGoals, getChinaSkill, scoreMatch } from "../src/game/model.js";
 import { createRng } from "../src/game/random.js";
+import { FAILURE_STAGES } from "../src/game/runPlan.js";
 import { simulateWorldCupRun } from "../src/game/simulation.js";
 import { GROUPS, RANKING_SNAPSHOT, TEAMS, getTeamByCode } from "../src/game/teams.js";
 import {
@@ -134,6 +135,31 @@ assert.equal(zeroWrongRun.result, "failure");
 assert.equal(zeroWrongRun.isZeroHidden, false);
 assert.equal(zeroWrongRun.settlement.defeatedOpponentCode, null);
 assert.ok(zeroWrongRun.settlement.failureReason);
+
+const failureStageSamples = new Map();
+for (let index = 0; index < 700; index += 1) {
+  const run = simulateWorldCupRun({
+    attributes: { attack: 5, defense: 5, midfield: 5, stamina: 5, tactics: 0, luck: 1 },
+    selectedTeam: getTeamByCode("ht"),
+    seed: `verify-failure-stage-${index}`,
+  });
+  if (run.runPlan.outcome === "failure" && !failureStageSamples.has(run.runPlan.failureStage)) {
+    failureStageSamples.set(run.runPlan.failureStage, run);
+  }
+  if (failureStageSamples.size === FAILURE_STAGES.length) break;
+}
+
+assert.deepEqual([...failureStageSamples.keys()].sort(), [...FAILURE_STAGES].sort());
+for (const [stage, run] of failureStageSamples) {
+  assert.equal(run.result, "failure", stage);
+  assert.equal(run.runPlan.failureStage, stage);
+  if (stage === "GROUP") {
+    assert.equal(run.knockoutRounds.length, 0, stage);
+  } else {
+    assert.equal(run.knockoutRounds.at(-1).key, stage, stage);
+    assert.equal(run.knockoutRounds.at(-1).match.chinaGoals < run.knockoutRounds.at(-1).match.opponentGoals, true, stage);
+  }
+}
 
 const luckyRun = simulateWorldCupRun({
   attributes: { attack: 5, defense: 5, midfield: 5, stamina: 5, tactics: 0, luck: 10 },

@@ -66,6 +66,11 @@ The system SHALL use frozen team ranking data and game ratings so stronger ranke
 ### Requirement: Outcome-first tournament path
 The system SHALL decide the final achievement first and then generate a consistent tournament path.
 
+#### Scenario: Run plan controls downstream randomness
+- **WHEN** a player starts a game after choosing attributes and a replacement team
+- **THEN** the engine MUST first create a run plan with final outcome and, for failures, one explicit failure stage among group stage, 32强, 16强, 8强, semifinal, or final
+- **AND** match results, scores, and commentary MUST be generated after that plan and remain consistent with it
+
 #### Scenario: Champion result has complete path
 - **WHEN** the outcome gate selects champion
 - **THEN** the generated path MUST include group advancement, five China knockout wins, a final defeated opponent, champion advancement board state, and champion settlement payload
