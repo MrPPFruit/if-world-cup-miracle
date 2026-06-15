@@ -1,4 +1,4 @@
-import { generateMatchCommentary, generateTransitionCommentary, getFailureReason, makeScoreText } from "./commentary.js";
+import { generateMatchCommentary, generateRunCopy, generateTransitionCommentary, getFailureReason, makeScoreText } from "./commentary.js";
 import {
   BRACKET_MATCHES,
   KNOCKOUT_ROUND_ORDER,
@@ -467,7 +467,13 @@ function simulateKnockout({ attributes, rng, groupResults, advancers, runPlan, z
           score: [match.chinaGoals, match.opponentGoals],
           penalties: match.penalties,
           match,
-          commentary: generateMatchCommentary({ match, opponent, attributes, roundLabel: meta.label, rng }),
+          commentary: generateMatchCommentary({
+            match,
+            opponent,
+            attributes,
+            roundLabel: meta.label,
+            rng: createRng(`commentary:${roundKey}:${opponent.code}:${match.chinaGoals}:${match.opponentGoals}:${JSON.stringify(attributes)}`),
+          }),
         },
       };
     }
@@ -582,6 +588,16 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
       };
     });
 
+  const copy = generateRunCopy({
+    result,
+    selectedTeam: replacedTeam,
+    chinaGroup,
+    chinaMatches,
+    knockout,
+    attributes,
+    rng,
+  });
+
   return {
     id: `run-${stableHash(`${seed}:${replacedTeam.code}:${JSON.stringify(attributes)}`)}`,
     seed,
@@ -604,6 +620,7 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
     knockoutRounds: knockout.rounds,
     advancementStages: knockout.advancementStages,
     pathRows: createPathRows({ selectedTeam: replacedTeam, groupResult: chinaGroup, knockout }),
+    copy,
     settlement: {
       result,
       defeatedOpponentCode: result === "champion" ? knockout.finalMatch?.opponent?.code || knockout.rounds.at(-1)?.opponent?.code : null,

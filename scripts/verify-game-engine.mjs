@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { COMPACT_COPY_LIMITS } from "../src/game/commentary.js";
 import { createBracketSlotMap, getFirstMeetingMatchId, getTeamSlot, isLegalFinalPair } from "../src/game/bracket.js";
 import { ATTRIBUTE_KEYS, ZERO_LUCK_CHAMPION_ATTRIBUTES, championChance, expectedGoals, getChinaSkill, scoreMatch } from "../src/game/model.js";
 import { createRng } from "../src/game/random.js";
 import { FAILURE_STAGES } from "../src/game/runPlan.js";
 import { simulateWorldCupRun } from "../src/game/simulation.js";
-import { GROUPS, RANKING_SNAPSHOT, TEAMS, getTeamByCode } from "../src/game/teams.js";
+import { GROUPS, PLAYER_POSITIONS, PLAYER_PROFILES_BY_TEAM, PLAYER_ROLES, RANKING_SNAPSHOT, TEAMS, getTeamByCode } from "../src/game/teams.js";
 import {
   ZERO_LUCK_ATTRIBUTE_PROFILES,
   ZERO_LUCK_HIDDEN_CHAMPION_ROUTE,
@@ -18,6 +19,7 @@ assert.equal(RANKING_SNAPSHOT.officialUpdate, "2026-06-11");
 assert.equal(TEAMS.length, 48);
 assert.equal(GROUPS.length, 12);
 assert.equal(new Set(TEAMS.map((team) => team.code)).size, 48);
+assert.equal(Object.keys(COMPACT_COPY_LIMITS).length, 6);
 assert.deepEqual(Object.keys(ZERO_LUCK_CHAMPION_ATTRIBUTES), ATTRIBUTE_KEYS);
 assert.equal(ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.replacedTeamCode, "nl");
 assert.equal(ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.finalOpponentCode, "jp");
@@ -38,6 +40,68 @@ for (const route of ZERO_LUCK_HIDDEN_CHAMPION_ROUTES) {
 
 for (const group of GROUPS) {
   assert.equal(group.teams.length, 4, `${group.id} group should contain four teams`);
+}
+
+const allowedPartKinds = new Set(["text", "time", "team", "player", "system", "score"]);
+const allowedPositions = new Set(PLAYER_POSITIONS);
+const allowedRoles = new Set(PLAYER_ROLES);
+const allTeamCodes = new Set([...TEAMS.map((team) => team.code), "cn"]);
+
+for (const code of allTeamCodes) {
+  const profiles = PLAYER_PROFILES_BY_TEAM[code];
+  assert.ok(profiles?.length >= 1, `${code} should have player profiles`);
+  for (const player of profiles) {
+    assert.equal(typeof player.name, "string", `${code} player should have name`);
+    assert.ok(player.name.length >= 2, `${code} player name should be readable`);
+    assert.ok(allowedPositions.has(player.position), `${code}:${player.name} invalid position ${player.position}`);
+    assert.ok(player.roles.length >= 1, `${code}:${player.name} should have roles`);
+    for (const role of player.roles) {
+      assert.ok(allowedRoles.has(role), `${code}:${player.name} invalid role ${role}`);
+    }
+  }
+}
+
+function assertRichLineParts(lines, label) {
+  for (const line of lines) {
+    assert.ok(line.id, `${label} line should have id`);
+    assert.ok(Array.isArray(line.parts), `${label}:${line.id} parts should be array`);
+    for (const part of line.parts) {
+      assert.ok(allowedPartKinds.has(part.kind), `${label}:${line.id} invalid part kind ${part.kind}`);
+      assert.equal(typeof part.text, "string", `${label}:${line.id} part text should be string`);
+    }
+  }
+}
+
+function assertMatchCommentary(run) {
+  assertRichLineParts(run.transitionLines, `${run.id}:transition`);
+  for (const round of run.knockoutRounds) {
+    assertRichLineParts(round.commentary, `${run.id}:${round.key}`);
+    const legalPlayerNames = new Set([
+      ...PLAYER_PROFILES_BY_TEAM.cn.map((player) => player.name),
+      ...(PLAYER_PROFILES_BY_TEAM[round.opponent.code] || []).map((player) => player.name),
+    ]);
+    for (const line of round.commentary) {
+      for (const richPart of line.parts.filter((part) => part.kind === "player")) {
+        assert.ok(legalPlayerNames.has(richPart.text), `${round.key} uses player outside match teams: ${richPart.text}`);
+      }
+      if (line.playerEvent) {
+        const profile = (PLAYER_PROFILES_BY_TEAM[line.playerEvent.teamCode] || []).find((player) => player.name === line.playerEvent.name);
+        assert.ok(profile, `${round.key}:${line.id} missing player event profile for ${line.playerEvent.name}`);
+        assert.ok(profile.roles.includes(line.playerEvent.role), `${round.key}:${line.id} incompatible role ${line.playerEvent.role} for ${line.playerEvent.name}`);
+      }
+      if (line.id.endsWith("-final") || line.id.endsWith("-score")) {
+        assert.deepEqual(line.scoreState, round.score, `${round.key}:${line.id} scoreState should match final score`);
+      }
+    }
+  }
+}
+
+function assertCopyBudgets(run) {
+  const copy = run.copy;
+  assert.ok(copy, `${run.id} should include generated copy`);
+  for (const [key, limit] of Object.entries(COMPACT_COPY_LIMITS)) {
+    assert.ok(copy[key].length <= limit, `${key} too long: ${copy[key]}`);
+  }
 }
 
 assert.ok(getTeamByCode("ar").baseRating > getTeamByCode("jp").baseRating);
@@ -99,6 +163,18 @@ assert.ok(
   zeroHiddenRun.knockoutRounds.at(-1).match.penalties?.[0] > zeroHiddenRun.knockoutRounds.at(-1).match.penalties?.[1] ||
     zeroHiddenRun.knockoutRounds.at(-1).match.chinaGoals > zeroHiddenRun.knockoutRounds.at(-1).match.opponentGoals,
 );
+assertMatchCommentary(zeroHiddenRun);
+assertCopyBudgets(zeroHiddenRun);
+
+const zeroHiddenRunRepeat = simulateWorldCupRun({
+  attributes: ZERO_LUCK_CHAMPION_ATTRIBUTES,
+  selectedTeam: getTeamByCode("nl"),
+  seed: "verify-zero-hidden",
+});
+assert.deepEqual(zeroHiddenRunRepeat.transitionLines, zeroHiddenRun.transitionLines);
+assert.deepEqual(zeroHiddenRunRepeat.knockoutRounds.map((round) => round.commentary), zeroHiddenRun.knockoutRounds.map((round) => round.commentary));
+assert.deepEqual(zeroHiddenRunRepeat.pathRows, zeroHiddenRun.pathRows);
+assert.deepEqual(zeroHiddenRunRepeat.copy, zeroHiddenRun.copy);
 
 for (const route of ZERO_LUCK_HIDDEN_CHAMPION_ROUTES) {
   const run = simulateWorldCupRun({
@@ -135,6 +211,8 @@ assert.equal(zeroWrongRun.result, "failure");
 assert.equal(zeroWrongRun.isZeroHidden, false);
 assert.equal(zeroWrongRun.settlement.defeatedOpponentCode, null);
 assert.ok(zeroWrongRun.settlement.failureReason);
+assertMatchCommentary(zeroWrongRun);
+assertCopyBudgets(zeroWrongRun);
 
 const failureStageSamples = new Map();
 for (let index = 0; index < 700; index += 1) {
@@ -170,5 +248,17 @@ assert.equal(luckyRun.groupResults.length, 12);
 assert.equal(luckyRun.chinaMatches.length, 3);
 assert.ok(["champion", "failure"].includes(luckyRun.result));
 assert.ok(luckyRun.transitionLines.length >= 7);
+assertMatchCommentary(luckyRun);
+assertCopyBudgets(luckyRun);
+
+const luckyRunRepeat = simulateWorldCupRun({
+  attributes: { attack: 5, defense: 5, midfield: 5, stamina: 5, tactics: 0, luck: 10 },
+  selectedTeam: getTeamByCode("ht"),
+  seed: "verify-lucky-run",
+});
+assert.deepEqual(luckyRunRepeat.transitionLines, luckyRun.transitionLines);
+assert.deepEqual(luckyRunRepeat.knockoutRounds.map((round) => round.commentary), luckyRun.knockoutRounds.map((round) => round.commentary));
+assert.deepEqual(luckyRunRepeat.pathRows, luckyRun.pathRows);
+assert.deepEqual(luckyRunRepeat.copy, luckyRun.copy);
 
 console.log("Game engine model verified");

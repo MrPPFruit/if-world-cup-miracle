@@ -1,4 +1,5 @@
 import { getDominantAttribute } from "./model.js";
+import { PLAYER_PROFILES_BY_TEAM } from "./teams.js";
 
 const PART_KIND = {
   TEXT: "text",
@@ -9,7 +10,14 @@ const PART_KIND = {
   SCORE: "score",
 };
 
-const PLAYER_POOL = ["武磊", "张玉宁", "王大雷", "蒋光太", "谢鹏飞", "韦世豪"];
+export const COMPACT_COPY_LIMITS = {
+  groupHeroTitle: 14,
+  groupHeroNote: 28,
+  groupMatchesNote: 26,
+  advancementHint: 18,
+  settlementHeroNote: 28,
+  pathFinalNote: 34,
+};
 
 const COMPACT_SCORE_TEAM_NAMES = {
   阿尔及利亚: "阿尔及",
@@ -46,6 +54,108 @@ const LUCK_LINES = [
   ["对手解围踢到自己人，", "足球完成了自我导航。"],
   ["裁判看表三次，", "时间决定站在中国队这边。"],
 ];
+
+const OPPONENT_TIER_LINES = {
+  superpower: [
+    ["强队气场压过来，", "中国队把勇气临时加班。"],
+    ["对面星味很足，", "解说席先把冷门两个字写轻一点。"],
+  ],
+  host: [
+    ["东道主声浪很满，", "草皮都像开了扩音器。"],
+    ["主场氛围往上拱，", "中国队把客场二字先折起来。"],
+  ],
+  asia: [
+    ["亚洲德比味道上来了，", "看台开始计算东亚风向。"],
+    ["熟人局不好踢，", "每次逼抢都像群聊已读。"],
+  ],
+  underdog: [
+    ["对手看着低调，", "但世界杯从不负责讲道理。"],
+    ["这场纸面不吓人，", "现实往往专治纸面。"],
+  ],
+  default: [
+    ["对面节奏不慢，", "中国队先把阵脚钉住。"],
+    ["比赛进入拉扯，", "每一次二点球都像开盲盒。"],
+  ],
+};
+
+const PLAYER_EVENT_LINES = {
+  save: [
+    ["准备扑救姿势，", "门前空气突然变厚。"],
+    ["横移封角度，", "射门路线被擦成省略号。"],
+  ],
+  block: [
+    ["提前卡住线路，", "这脚进攻被写进未遂档案。"],
+    ["把禁区门缝合上，", "对手只能在外面读说明书。"],
+  ],
+  control: [
+    ["把节奏揉慢，", "中场像临时开了棋局。"],
+    ["连续分球调度，", "草皮上出现了几何课。"],
+  ],
+  finish: [
+    ["突然启动，", "禁区灯光像被人拧亮。"],
+    ["一脚处理很锋利，", "记分牌差点提前醒来。"],
+  ],
+  pace: [
+    ["边路提速，", "防线开始追问人生。"],
+    ["把速度拉满，", "草皮像被划出一道风。"],
+  ],
+  setPiece: [
+    ["站到定位球前，", "人墙的哲学问题变多了。"],
+    ["准备起脚，", "空气里有一点不讲理的弧线。"],
+  ],
+};
+
+function getTeamProfiles(team) {
+  return PLAYER_PROFILES_BY_TEAM[team?.code] || [
+    { name: `${team?.name || "对手"}队长`, position: "midfielder", roles: ["control"] },
+  ];
+}
+
+function pickPlayerByRole(rng, team, preferredRoles = []) {
+  const profiles = getTeamProfiles(team);
+  const matching = profiles.filter((player) => player.roles.some((role) => preferredRoles.includes(role)));
+  return pick(rng, matching.length ? matching : profiles);
+}
+
+function getOpponentTier(team) {
+  if (team?.tags?.includes("superpower") || team?.baseRating >= 88) return "superpower";
+  if (team?.tags?.includes("host")) return "host";
+  if (team?.tags?.includes("asia")) return "asia";
+  if (team?.baseRating <= 66) return "underdog";
+  return "default";
+}
+
+function getLuckTone(attributes) {
+  const luck = Number(attributes?.luck) || 0;
+  if (luck >= 8) return "absurd";
+  if (luck >= 6) return "high";
+  if (luck >= 3) return "mild";
+  return "none";
+}
+
+function getScoreShape(match, isWin) {
+  if (match.penalties) return "penalty";
+  if (isWin && match.opponentGoals === 0) return "cleanSheet";
+  if (isWin && match.opponentGoals > 0) return "survive";
+  if (!isWin && match.chinaGoals + 1 === match.opponentGoals) return "narrowLoss";
+  if (!isWin) return "exit";
+  return "draw";
+}
+
+function getChinaStanding(group) {
+  return group?.standings?.find((row) => row.team.code === "cn") || null;
+}
+
+function compact(text, limit) {
+  if (!limit || text.length <= limit) return text;
+  return `${text.slice(0, Math.max(1, limit - 1))}…`;
+}
+
+export function getPlainText(partsOrText) {
+  if (typeof partsOrText === "string") return partsOrText;
+  if (Array.isArray(partsOrText)) return partsOrText.map((item) => item.text || "").join("");
+  return partsOrText?.parts ? getPlainText(partsOrText.parts) : "";
+}
 
 export function richLine(id, parts, meta = {}) {
   return { id, parts, ...meta };
@@ -123,20 +233,30 @@ function makeGoalLines({ match, opponent, rng, baseId }) {
     const isChina = side === "china";
     if (isChina) chinaScore += 1;
     else opponentScore += 1;
-    const text = pick(rng, isChina ? chinaGoalTexts : opponentGoalTexts);
-    const scorer = isChina ? pick(rng, PLAYER_POOL) : opponent.name;
+    const scorer = isChina
+      ? pickPlayerByRole(rng, { code: "cn", name: "中国队" }, ["finish", "pace", "setPiece", "control"])
+      : pickPlayerByRole(rng, opponent, ["finish", "pace", "setPiece", "control"]);
+    const role = pick(rng, scorer.roles || ["finish"]);
+    const text = pick(rng, isChina ? chinaGoalTexts : PLAYER_EVENT_LINES[role] || opponentGoalTexts);
     const scoreText = `${chinaScore}:${opponentScore}`;
 
     return richLine(
       `${baseId}-goal-${index}`,
       [
         part(goalTimes[index] || "90+5’", PART_KIND.TIME),
-        part(isChina ? scorer : opponent.name, isChina ? PART_KIND.PLAYER : PART_KIND.TEAM),
+        part(scorer.name, PART_KIND.PLAYER),
         part(text[0]),
         part(text[1]),
         part(scoreText, PART_KIND.SCORE),
       ],
-      { scoreState: [chinaScore, opponentScore] },
+      {
+        scoreState: [chinaScore, opponentScore],
+        playerEvent: {
+          name: scorer.name,
+          teamCode: isChina ? "cn" : opponent.code,
+          role,
+        },
+      },
     );
   });
 }
@@ -154,12 +274,24 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
   const dominant = getDominantAttribute(attributes);
   const styleLines = STYLE_LINES[dominant] || STYLE_LINES.midfield;
   const luck = Number(attributes.luck) || 0;
-  const player = PLAYER_POOL[Math.floor(rng.next() * PLAYER_POOL.length)] || PLAYER_POOL[0];
+  const chinaPlayer = pickPlayerByRole(rng, { code: "cn", name: "中国队" }, ["block", "save", "control"]);
+  const opponentTier = getOpponentTier(opponent);
+  const opponentTierLine = pick(rng, OPPONENT_TIER_LINES[opponentTier] || OPPONENT_TIER_LINES.default);
+  const opponentStar = pickPlayerByRole(rng, opponent, ["finish", "control", "pace", "setPiece"]);
+  const starRole = pick(rng, opponentStar.roles);
+  const starText = pick(rng, PLAYER_EVENT_LINES[starRole] || PLAYER_EVENT_LINES.control);
   const styleA = styleLines[Math.floor(rng.next() * styleLines.length)] || styleLines[0];
   const styleB = luck >= 6 ? LUCK_LINES[Math.floor(rng.next() * LUCK_LINES.length)] : null;
   const isWin = match.chinaGoals > match.opponentGoals || (match.penalties && match.penalties[0] > match.penalties[1]);
   const isDraw = match.chinaGoals === match.opponentGoals && !match.penalties;
-  const finalText = isWin ? "哨响  这一关硬是过去了" : isDraw ? "哨响  算分器还活着" : "哨响  这条宇宙线开始漏风";
+  const scoreShape = getScoreShape(match, isWin);
+  const finalText = isWin
+    ? scoreShape === "penalty"
+      ? "哨响  点球点上也能种出奇迹"
+      : "哨响  这一关硬是过去了"
+    : isDraw
+      ? "哨响  算分器还活着"
+      : "哨响  这条宇宙线开始漏风";
   const baseId = match.id || roundLabel;
   const goalLines = makeGoalLines({ match, opponent, rng, baseId });
 
@@ -182,18 +314,32 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
     richLine(`${baseId}-pressure`, [
       part("29’", PART_KIND.TIME),
       part(opponent.name, PART_KIND.TEAM),
-      part("开始加速，"),
+      part(opponentTierLine[0]),
       part("中国队", PART_KIND.TEAM),
-      part("禁区前沿像临时开了早会。"),
+      part(opponentTierLine[1]),
     ]),
     ...goalLines.slice(0, 3),
     richLine(`${baseId}-player`, [
       part("58’", PART_KIND.TIME),
-      part(player, PART_KIND.PLAYER),
+      part(chinaPlayer.name, PART_KIND.PLAYER),
       part("完成关键处理，"),
       part(opponent.name, PART_KIND.TEAM),
       part("节奏被迫降下来。"),
     ]),
+    richLine(`${baseId}-opponent-star`, [
+      part("66’", PART_KIND.TIME),
+      part(opponentStar.name, PART_KIND.PLAYER),
+      part(starText[0]),
+      part(starText[1]),
+      part("中国队", PART_KIND.TEAM),
+      part("暂时把剧本压住。"),
+    ], {
+      playerEvent: {
+        name: opponentStar.name,
+        teamCode: opponent.code,
+        role: starRole,
+      },
+    }),
     ...goalLines.slice(3),
   ];
 
@@ -273,6 +419,13 @@ export function generateTransitionCommentary({ selectedTeam, groupMatches, attri
     stamina: "体能韧性",
     tactics: "战术整活",
   }[dominant] || "中场脑子";
+  const luckTone = getLuckTone(attributes);
+  const luckCopy = {
+    none: "没有幸运外包  全靠腿和心跳",
+    mild: "幸运偶尔探头  像迟到的场务",
+    high: "幸运开始值班  门柱都在看工牌",
+    absurd: "幸运穿西装入场  宇宙线开始端水",
+  }[luckTone];
 
   return [
     richLine("transition-replace", [
@@ -288,8 +441,19 @@ export function generateTransitionCommentary({ selectedTeam, groupMatches, attri
       part("更衣室", PART_KIND.SYSTEM),
       part("门牌重新贴好，队务说这锅先别问是谁背。"),
     ]),
+    richLine("transition-luck", [
+      part("07’", PART_KIND.TIME),
+      part("幸运值", PART_KIND.SYSTEM),
+      part(luckCopy),
+      part("。"),
+    ]),
     ...groupMatches.flatMap((match, index) => {
       const opponent = opponents[index];
+      const star = pickPlayerByRole(
+        { next: () => ((index + 1) * 0.271828) % 1 },
+        opponent,
+        index === 0 ? ["finish", "pace"] : index === 1 ? ["control", "setPiece"] : ["save", "block"],
+      );
       return [
         richLine(`transition-group-${index}-kickoff`, [
           part(`${12 + index * 19}’`, PART_KIND.TIME),
@@ -304,6 +468,13 @@ export function generateTransitionCommentary({ selectedTeam, groupMatches, attri
           part("把"),
           part(dominantText, PART_KIND.SYSTEM),
           part(index === 1 ? "踢成了临场说明书。" : "塞进比赛节奏里。"),
+        ]),
+        richLine(`transition-group-${index}-star`, [
+          part(`${28 + index * 13}’`, PART_KIND.TIME),
+          part(star.name, PART_KIND.PLAYER),
+          part("被镜头点名，"),
+          part("中国队", PART_KIND.TEAM),
+          part(index === 2 ? "把最后一页剧本攥住。" : "把这段压力先存档。"),
         ]),
         richLine(`transition-group-${index}-swing`, [
           part(`${39 + index * 13}’`, PART_KIND.TIME),
@@ -332,4 +503,58 @@ export function generateTransitionCommentary({ selectedTeam, groupMatches, attri
       part("还没有被宇宙线删除。"),
     ]),
   ];
+}
+
+export function generateRunCopy({ result, selectedTeam, chinaGroup, chinaMatches, knockout, attributes, rng }) {
+  const chinaStanding = getChinaStanding(chinaGroup);
+  const advanced = result === "champion" || Boolean(knockout?.rounds?.length);
+  const dominant = getDominantAttribute(attributes);
+  const dominantShort = {
+    attack: "锋线开灯",
+    defense: "铁桶苟住",
+    midfield: "中场有谱",
+    stamina: "补时有电",
+    tactics: "战术整活",
+  }[dominant] || "中场有谱";
+  const groupWin = chinaMatches?.filter((match) => match.chinaGoals > match.opponentGoals).length || 0;
+  const groupDraw = chinaMatches?.filter((match) => match.chinaGoals === match.opponentGoals).length || 0;
+  const titlePool = advanced
+    ? ["中国队压线活了", `${dominantShort}救场`, "小组剧本没关"]
+    : ["中国队梦醒小组", "宇宙线先断电", "算分器已下班"];
+  const notePool = advanced
+    ? ["数学还没放弃我们", "庄周梦蝶  先别醒", "诸葛亮借东风也就这样"]
+    : ["这条线到此为止", "人生如逆旅  下局再踢", "风起青萍  球没进门"];
+  const matchNotePool = advanced
+    ? [`${groupWin}胜${groupDraw}平  活得很文学`, "输赢平都刚好卡边", "积分榜给了一个眼神"]
+    : ["算分器关机  段子还在", "小组赛教会我们重开", "比分尽力了  宇宙没签字"];
+  const knockoutNotePool = result === "champion"
+    ? ["这球不一定科学  但比分讲礼貌", "剧本很野  记分牌很稳", "兵无常势  球有偏爱"]
+    : ["这球已经尽力  风向没签字", "剧本写到这里  墨水先断", "比分不肯通融  下局再来"];
+  const heroTitle = pick(rng, titlePool);
+  const heroNote = pick(rng, notePool);
+  const matchNote = pick(rng, matchNotePool);
+  const finalOpponent = knockout?.rounds?.at(-1)?.opponent;
+  const pathFinalNote = result === "champion"
+    ? `${finalOpponent?.name || "对手"}看完比分  想申请重开宇宙`
+    : `${finalOpponent?.name || selectedTeam.name}看完战报  也说这线挺累`;
+
+  return {
+    groupHeroTitle: compact(heroTitle, COMPACT_COPY_LIMITS.groupHeroTitle),
+    groupHeroNote: compact(heroNote, COMPACT_COPY_LIMITS.groupHeroNote),
+    groupMatchesNote: compact(matchNote, COMPACT_COPY_LIMITS.groupMatchesNote),
+    groupStatus: advanced ? "晋级 32 强" : "小组赛出局",
+    groupBadge: advanced ? "压线活了" : "小组出局",
+    groupNextCta: advanced ? "进入 32 强：梦还没醒" : "查看本局结算",
+    knockoutResultNote: pick(rng, knockoutNotePool),
+    advancementHint: compact(advanced ? "席位已盖章" : "本局准备结算", COMPACT_COPY_LIMITS.advancementHint),
+    settlementHeroTitle: result === "champion" ? "世界杯冠军！" : "梦醒了！",
+    settlementHeroCopy: result === "champion" ? "中国队历史首次夺得世界杯冠军" : "请先别关机  宇宙线还在加载下一条",
+    settlementHeroNote: compact(
+      result === "champion"
+        ? "本局建议收藏  现实服暂未同步"
+        : `${chinaStanding?.points ?? 0}分宇宙线  下局再补课`,
+      COMPACT_COPY_LIMITS.settlementHeroNote,
+    ),
+    pathFinalNote: compact(pathFinalNote, COMPACT_COPY_LIMITS.pathFinalNote),
+  };
 }

@@ -100,6 +100,75 @@ export const CHINA_TEAM = team({
   tags: ["china"],
 });
 
+export const PLAYER_POSITIONS = ["goalkeeper", "defender", "midfielder", "creator", "forward"];
+export const PLAYER_ROLES = ["save", "block", "control", "finish", "pace", "setPiece"];
+
+const profile = (name, position, roles) => ({ name, position, roles });
+const genericProfiles = (teamName) => [
+  profile(`${teamName}队长`, "midfielder", ["control"]),
+  profile(`${teamName}门将`, "goalkeeper", ["save"]),
+  profile(`${teamName}锋线`, "forward", ["finish"]),
+];
+
+export const PLAYER_PROFILES_BY_TEAM = {
+  cn: [
+    profile("武磊", "forward", ["finish", "pace"]),
+    profile("张玉宁", "forward", ["finish"]),
+    profile("王大雷", "goalkeeper", ["save"]),
+    profile("蒋光太", "defender", ["block"]),
+    profile("谢鹏飞", "creator", ["control", "setPiece"]),
+    profile("韦世豪", "forward", ["finish", "pace"]),
+  ],
+  mx: [profile("希门尼斯", "forward", ["finish"]), profile("埃德松", "midfielder", ["control"]), profile("奥乔亚", "goalkeeper", ["save"])],
+  za: genericProfiles("南非"),
+  kr: [profile("孙兴慜", "forward", ["finish", "pace"]), profile("李刚仁", "creator", ["control", "setPiece"]), profile("金玟哉", "defender", ["block"])],
+  cz: [profile("希克", "forward", ["finish"]), profile("绍切克", "midfielder", ["control", "block"]), profile("切尔尼", "creator", ["pace"])],
+  ca: [profile("戴维", "forward", ["finish", "pace"]), profile("阿方索", "creator", ["pace", "control"]), profile("欧斯塔基奥", "midfielder", ["control"])],
+  ba: [profile("哲科", "forward", ["finish"]), profile("皮亚尼奇", "creator", ["control", "setPiece"]), profile("科拉希纳茨", "defender", ["block"])],
+  qa: [profile("阿菲夫", "creator", ["control", "pace"]), profile("阿里", "forward", ["finish"]), profile("巴沙姆", "goalkeeper", ["save"])],
+  ch: [profile("扎卡", "midfielder", ["control", "setPiece"]), profile("阿坎吉", "defender", ["block"]), profile("索默", "goalkeeper", ["save"])],
+  br: [profile("内马尔", "creator", ["control", "setPiece", "finish"]), profile("维尼修斯", "forward", ["finish", "pace"]), profile("阿利森", "goalkeeper", ["save"])],
+  ma: [profile("阿什拉夫", "defender", ["pace", "block"]), profile("齐耶赫", "creator", ["control", "setPiece"]), profile("布努", "goalkeeper", ["save"])],
+  ht: genericProfiles("海地"),
+  "gb-sct": [profile("麦克托米奈", "midfielder", ["control", "finish"]), profile("罗伯逊", "defender", ["pace", "block"]), profile("麦金", "midfielder", ["control"])],
+  us: [profile("普利西奇", "creator", ["control", "finish", "pace"]), profile("雷纳", "creator", ["control"]), profile("泰勒亚当斯", "midfielder", ["block", "control"])],
+  py: [profile("阿尔米隆", "creator", ["pace", "control"]), profile("恩西索", "forward", ["finish"]), profile("巴拉圭队长", "defender", ["block"])],
+  au: [profile("古德温", "creator", ["setPiece", "control"]), profile("博伊尔", "forward", ["pace", "finish"]), profile("瑞恩", "goalkeeper", ["save"])],
+  tr: [profile("恰尔汗奥卢", "creator", ["control", "setPiece"]), profile("居莱尔", "creator", ["control", "finish"]), profile("德米拉尔", "defender", ["block"])],
+  de: [profile("穆西亚拉", "creator", ["control", "finish"]), profile("维尔茨", "creator", ["control", "setPiece"]), profile("诺伊尔", "goalkeeper", ["save"])],
+  cw: genericProfiles("库拉索"),
+  ci: [profile("凯西", "midfielder", ["control", "block"]), profile("阿丁格拉", "forward", ["pace", "finish"]), profile("科特迪瓦门将", "goalkeeper", ["save"])],
+  ec: [profile("凯塞多", "midfielder", ["control", "block"]), profile("恩纳瓦伦西亚", "forward", ["finish"]), profile("因卡皮耶", "defender", ["block"])],
+  nl: [profile("范戴克", "defender", ["block"]), profile("德容", "midfielder", ["control"]), profile("加克波", "forward", ["finish", "pace"])],
+  jp: [profile("三笘薰", "creator", ["pace", "control"]), profile("久保建英", "creator", ["control", "setPiece"]), profile("远藤航", "midfielder", ["block", "control"])],
+  se: [profile("伊萨克", "forward", ["finish", "pace"]), profile("库卢塞夫斯基", "creator", ["control"]), profile("林德洛夫", "defender", ["block"])],
+  tn: genericProfiles("突尼斯"),
+  be: [profile("德布劳内", "creator", ["control", "setPiece"]), profile("卢卡库", "forward", ["finish"]), profile("库尔图瓦", "goalkeeper", ["save"])],
+  eg: [profile("萨拉赫", "forward", ["finish", "pace"]), profile("特雷泽盖", "creator", ["control", "finish"]), profile("埃及门将", "goalkeeper", ["save"])],
+  ir: [profile("塔雷米", "forward", ["finish"]), profile("阿兹蒙", "forward", ["finish"]), profile("贝兰万德", "goalkeeper", ["save"])],
+  nz: [profile("伍德", "forward", ["finish"]), profile("新西兰队长", "defender", ["block"]), profile("新西兰门将", "goalkeeper", ["save"])],
+  es: [profile("亚马尔", "creator", ["pace", "control"]), profile("佩德里", "midfielder", ["control"]), profile("罗德里", "midfielder", ["control", "block"])],
+  cv: genericProfiles("佛得角"),
+  sa: [profile("多萨里", "creator", ["control", "finish"]), profile("布赖坎", "forward", ["finish"]), profile("奥韦斯", "goalkeeper", ["save"])],
+  uy: [profile("巴尔韦德", "midfielder", ["control", "finish"]), profile("努涅斯", "forward", ["finish", "pace"]), profile("阿劳霍", "defender", ["block"])],
+  fr: [profile("姆巴佩", "forward", ["finish", "pace"]), profile("格列兹曼", "creator", ["control", "setPiece"]), profile("迈尼昂", "goalkeeper", ["save"])],
+  sn: [profile("马内", "forward", ["finish", "pace"]), profile("库利巴利", "defender", ["block"]), profile("门迪", "goalkeeper", ["save"])],
+  iq: genericProfiles("伊拉克"),
+  no: [profile("哈兰德", "forward", ["finish"]), profile("厄德高", "creator", ["control", "setPiece"]), profile("挪威门将", "goalkeeper", ["save"])],
+  ar: [profile("梅西", "creator", ["control", "setPiece", "finish"]), profile("劳塔罗", "forward", ["finish"]), profile("马丁内斯", "goalkeeper", ["save"])],
+  dz: [profile("马赫雷斯", "creator", ["control", "setPiece"]), profile("本纳赛尔", "midfielder", ["control"]), profile("阿尔及利亚门将", "goalkeeper", ["save"])],
+  at: [profile("阿拉巴", "defender", ["block", "setPiece"]), profile("萨比策", "midfielder", ["control", "finish"]), profile("阿瑙托维奇", "forward", ["finish"])],
+  jo: genericProfiles("约旦"),
+  pt: [profile("C罗", "forward", ["finish"]), profile("B费", "creator", ["control", "setPiece"]), profile("鲁本迪亚斯", "defender", ["block"])],
+  cd: genericProfiles("刚果金"),
+  uz: [profile("肖穆罗多夫", "forward", ["finish"]), profile("乌兹别克队长", "midfielder", ["control"]), profile("乌兹别克门将", "goalkeeper", ["save"])],
+  co: [profile("迪亚斯", "forward", ["pace", "finish"]), profile("J罗", "creator", ["control", "setPiece"]), profile("哥伦比亚门将", "goalkeeper", ["save"])],
+  "gb-eng": [profile("凯恩", "forward", ["finish"]), profile("贝林厄姆", "midfielder", ["control", "finish"]), profile("萨卡", "creator", ["pace", "control"])],
+  hr: [profile("莫德里奇", "creator", ["control", "setPiece"]), profile("格瓦迪奥尔", "defender", ["block"]), profile("利瓦科维奇", "goalkeeper", ["save"])],
+  gh: [profile("库杜斯", "creator", ["control", "finish"]), profile("托马斯", "midfielder", ["control", "block"]), profile("加纳门将", "goalkeeper", ["save"])],
+  pa: [profile("巴尔塞纳斯", "creator", ["control"]), profile("巴拿马队长", "defender", ["block"]), profile("巴拿马门将", "goalkeeper", ["save"])],
+};
+
 export const GROUPS = Array.from({ length: 12 }, (_, index) => {
   const id = String.fromCharCode("A".charCodeAt(0) + index);
   return {

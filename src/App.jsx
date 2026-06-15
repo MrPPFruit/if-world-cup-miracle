@@ -891,6 +891,7 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
         { score: "2:1", opponent: opponentC },
         { score: "1:1", opponent: opponentB },
       ];
+  const runCopy = gameRun?.copy || {};
 
   return (
     <PageShell className="group-screen">
@@ -898,12 +899,12 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
       <div className="result-card group-result">
         <img className="group-trophy" src="/assets/worldcup-trophy-cutout.png" alt="" />
         <div className="group-result-copy">
-          <h2>{chinaAdvanced ? "中国队压线活了！" : "中国队梦醒小组赛"}</h2>
+          <h2>{runCopy.groupHeroTitle || (chinaAdvanced ? "中国队压线活了！" : "中国队梦醒小组赛")}</h2>
           <p>
             <b>{chinaStanding?.wins ?? 1}</b> 胜 <b>{chinaStanding?.draws ?? 1}</b> 平 <b>{chinaStanding?.losses ?? 1}</b> 负，积 <b className="red-number">{chinaStanding?.points ?? 4}</b> 分
           </p>
-          <div className={cx("status-chip", chinaAdvanced && "green")}><span>{chinaAdvanced ? "✓" : "×"}</span> {chinaAdvanced ? "晋级 32 强" : "小组赛出局"}</div>
-          <em>{chinaAdvanced ? "数学还没放弃我们  宇宙也没来得及关门" : "这条宇宙线先到这里  下一条再整活"}</em>
+          <div className={cx("status-chip", chinaAdvanced && "green")}><span>{chinaAdvanced ? "✓" : "×"}</span> {runCopy.groupStatus || (chinaAdvanced ? "晋级 32 强" : "小组赛出局")}</div>
+          <em>{runCopy.groupHeroNote || (chinaAdvanced ? "数学还没放弃我们  宇宙也没来得及关门" : "这条宇宙线先到这里  下一条再整活")}</em>
         </div>
       </div>
       <section className="data-panel standings-panel">
@@ -923,7 +924,7 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
               <strong>{row.team.name}</strong>
               {row.china ? (
                 <em className={cx("line-badge", !chinaAdvanced && "is-out")}>
-                  {chinaAdvanced ? "压线活了" : "小组出局"}
+                  {runCopy.groupBadge || (chinaAdvanced ? "压线活了" : "小组出局")}
                 </em>
               ) : null}
             </span>
@@ -942,7 +943,7 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
             <span className="match-team match-team-away">{match.opponent.name} <FlagIcon code={match.opponent.code} /></span>
           </div>
         ))}
-        <p>{chinaAdvanced ? "输得有尊严  赢得很突然  平得刚刚好" : "算分器关机  但段子还在"}</p>
+        <p>{runCopy.groupMatchesNote || (chinaAdvanced ? "输得有尊严  赢得很突然  平得刚刚好" : "算分器关机  但段子还在")}</p>
       </section>
       <section className="other-groups">
         <header><span></span>晋级队伍速览<i></i></header>
@@ -954,7 +955,7 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
         ))}
       </section>
       <button className="primary-button group-next-button" onClick={onNext}>
-        {chinaAdvanced ? "进入 32 强：梦还没醒" : "查看本局结算"} <ArrowRight size={20} />
+        {runCopy.groupNextCta || (chinaAdvanced ? "进入 32 强：梦还没醒" : "查看本局结算")} <ArrowRight size={20} />
       </button>
     </PageShell>
   );
@@ -1051,6 +1052,7 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
   const round = rounds[roundIndex] || rounds[0];
   const progress = roundIndex + 1;
   const advancementStage = gameRun?.advancementStages?.[roundIndex] || getAdvancementStage(progress);
+  const runCopy = gameRun?.copy || {};
   const [visibleReportCount, setVisibleReportCount] = useState(1);
   const [reportRoundIndex, setReportRoundIndex] = useState(roundIndex);
   const reportRef = useRef(null);
@@ -1119,7 +1121,7 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
           </div>
         </div>
         {reportComplete ? <span className="knockout-status"><Trophy size={14} /> {round.status}</span> : null}
-        {reportComplete ? <p>这球踢得不一定科学  但比分很讲礼貌</p> : null}
+        {reportComplete ? <p>{runCopy.knockoutResultNote || "这球踢得不一定科学  但比分很讲礼貌"}</p> : null}
       </div>
       <section className="data-panel commentary-panel" ref={reportRef} aria-live="polite">
         <header><span></span>本场战报<i></i></header>
@@ -1143,7 +1145,7 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
       <section className="bracket-section advancement-section">
         <div className="section-title-row">
           <h3><Trophy size={17} /> {advancementStage.title}</h3>
-          <span>{reportComplete ? advancementStage.hint : "席位等待终场"}</span>
+          <span>{reportComplete ? runCopy.advancementHint || advancementStage.hint : "席位等待终场"}</span>
         </div>
         {reportComplete ? (
           <AdvancementBoard stage={advancementStage} revealed />
@@ -1435,6 +1437,7 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
   const selectedCode = selectedTeam.code || "jp";
   const resultState = gameRun?.settlement?.result || result;
   const isFailure = resultState === "failure";
+  const runCopy = gameRun?.copy || {};
   const fallbackPathRows = isFailure
     ? [
         { type: "replace", label: "替换", verb: "贴上", targetCode: selectedCode, targetName: selectedTeam.name },
@@ -1519,10 +1522,10 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
           <div className="final-hero-copy">
             <h2 className={cx(!isFailure && "champion-title")}>
               {!isFailure ? <FlagIcon code="cn" className="hero-title-flag" /> : null}
-              <span className="final-hero-title-text">{isFailure ? "梦醒了！" : "世界杯冠军！"}</span>
+              <span className="final-hero-title-text">{runCopy.settlementHeroTitle || (isFailure ? "梦醒了！" : "世界杯冠军！")}</span>
             </h2>
-            <p>{isFailure ? "请先别关机  宇宙线还在加载下一条" : "中国队历史首次夺得世界杯冠军"}</p>
-            <span className="final-hero-note">{isFailure ? `${failureStageText}  但这局已经够离谱` : "本局建议收藏  现实服暂未同步"}</span>
+            <p>{runCopy.settlementHeroCopy || (isFailure ? "请先别关机  宇宙线还在加载下一条" : "中国队历史首次夺得世界杯冠军")}</p>
+            <span className="final-hero-note">{runCopy.settlementHeroNote || (isFailure ? `${failureStageText}  但这局已经够离谱` : "本局建议收藏  现实服暂未同步")}</span>
           </div>
           <img
             className="final-defeated-mascot"
@@ -1536,7 +1539,7 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
           {pathRows.map((row) => (
             <div className={cx("path-row", `path-row-${row.type}`, row.final && "final-row")} key={row.label}>
               <MiraclePathLine row={row} />
-              {row.final ? <small>{isFailure ? `${row.opponentName}队看完战报  表示这宇宙线也挺累` : `${row.opponentName}队看完比分  申请重开宇宙线`}</small> : null}
+              {row.final ? <small>{runCopy.pathFinalNote || (isFailure ? `${row.opponentName}队看完战报  表示这宇宙线也挺累` : `${row.opponentName}队看完比分  申请重开宇宙线`)}</small> : null}
             </div>
           ))}
         </section>
