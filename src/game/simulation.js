@@ -284,6 +284,8 @@ function simulateKnockout({ attributes, rng, advancers, replacedTeam, willChampi
     const match = createKnockoutMatch({ roundMeta: meta, opponent, attributes, rng, forceWin: willWinRound, fixed });
     const round = {
       ...meta,
+      status: willWinRound ? meta.status : `止步 ${meta.label}`,
+      next: willWinRound ? meta.next : "查看本局结算",
       opponent,
       score: [match.chinaGoals, match.opponentGoals],
       penalties: match.penalties,

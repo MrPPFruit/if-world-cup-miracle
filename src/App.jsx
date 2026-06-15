@@ -16,6 +16,9 @@ import {
   Trophy,
 } from "lucide-react";
 import { getSettlementCharacterAsset } from "./characterAssets";
+import { simulateWorldCupRun } from "./game/simulation";
+import { GROUPS as GAME_GROUPS } from "./game/teams";
+import { track } from "./telemetry";
 
 gsap.registerPlugin(useGSAP);
 
@@ -46,116 +49,7 @@ const PRESETS = [
 
 const team = (code, flag, name) => ({ code, flag, name });
 
-const GROUPS = [
-  {
-    id: "A",
-    teams: [
-      team("mx", "🇲🇽", "墨西哥"),
-      team("za", "🇿🇦", "南非"),
-      team("kr", "🇰🇷", "韩国"),
-      team("cz", "🇨🇿", "捷克"),
-    ],
-  },
-  {
-    id: "B",
-    teams: [
-      team("ca", "🇨🇦", "加拿大"),
-      team("ba", "🇧🇦", "波黑"),
-      team("qa", "🇶🇦", "卡塔尔"),
-      team("ch", "🇨🇭", "瑞士"),
-    ],
-  },
-  {
-    id: "C",
-    teams: [
-      team("br", "🇧🇷", "巴西"),
-      team("ma", "🇲🇦", "摩洛哥"),
-      team("ht", "🇭🇹", "海地"),
-      team("gb-sct", "🏴", "苏格兰"),
-    ],
-  },
-  {
-    id: "D",
-    teams: [
-      team("us", "🇺🇸", "美国"),
-      team("py", "🇵🇾", "巴拉圭"),
-      team("au", "🇦🇺", "澳大利亚"),
-      team("tr", "🇹🇷", "土耳其"),
-    ],
-  },
-  {
-    id: "E",
-    teams: [
-      team("de", "🇩🇪", "德国"),
-      team("cw", "🇨🇼", "库拉索"),
-      team("ci", "🇨🇮", "科特迪瓦"),
-      team("ec", "🇪🇨", "厄瓜多尔"),
-    ],
-  },
-  {
-    id: "F",
-    teams: [
-      team("nl", "🇳🇱", "荷兰"),
-      team("jp", "🇯🇵", "日本"),
-      team("se", "🇸🇪", "瑞典"),
-      team("tn", "🇹🇳", "突尼斯"),
-    ],
-  },
-  {
-    id: "G",
-    teams: [
-      team("be", "🇧🇪", "比利时"),
-      team("eg", "🇪🇬", "埃及"),
-      team("ir", "🇮🇷", "伊朗"),
-      team("nz", "🇳🇿", "新西兰"),
-    ],
-  },
-  {
-    id: "H",
-    teams: [
-      team("es", "🇪🇸", "西班牙"),
-      team("cv", "🇨🇻", "佛得角"),
-      team("sa", "🇸🇦", "沙特"),
-      team("uy", "🇺🇾", "乌拉圭"),
-    ],
-  },
-  {
-    id: "I",
-    teams: [
-      team("fr", "🇫🇷", "法国"),
-      team("sn", "🇸🇳", "塞内加尔"),
-      team("iq", "🇮🇶", "伊拉克"),
-      team("no", "🇳🇴", "挪威"),
-    ],
-  },
-  {
-    id: "J",
-    teams: [
-      team("ar", "🇦🇷", "阿根廷"),
-      team("dz", "🇩🇿", "阿尔及利亚"),
-      team("at", "🇦🇹", "奥地利"),
-      team("jo", "🇯🇴", "约旦"),
-    ],
-  },
-  {
-    id: "K",
-    teams: [
-      team("pt", "🇵🇹", "葡萄牙"),
-      team("cd", "🇨🇩", "刚果（金）"),
-      team("uz", "🇺🇿", "乌兹别克"),
-      team("co", "🇨🇴", "哥伦比亚"),
-    ],
-  },
-  {
-    id: "L",
-    teams: [
-      team("gb-eng", "🏴", "英格兰"),
-      team("hr", "🇭🇷", "克罗地亚"),
-      team("gh", "🇬🇭", "加纳"),
-      team("pa", "🇵🇦", "巴拿马"),
-    ],
-  },
-];
+const GROUPS = GAME_GROUPS;
 
 const TEAM_DISPLAY_NAMES = {
   阿尔及利亚: "阿尔及",
@@ -789,13 +683,13 @@ function ReplacementScreen({ selected, setSelected, onNext, onBack }) {
   );
 }
 
-function TransitionScreen({ selectedTeam, onDone }) {
+function TransitionScreen({ selectedTeam, gameRun, onDone }) {
   const [visibleCount, setVisibleCount] = useState(1);
   const [isAccelerated, setIsAccelerated] = useState(false);
   const feedRef = useRef(null);
   const revealTimerRef = useRef(null);
   const doneTimerRef = useRef(null);
-  const transitionLines = useMemo(() => getTransitionLines(selectedTeam), [selectedTeam]);
+  const transitionLines = useMemo(() => gameRun?.transitionLines || getTransitionLines(selectedTeam), [gameRun, selectedTeam]);
   const revealTarget = Math.min(TRANSITION_REVEAL_COUNT, transitionLines.length);
   const displayLines = useMemo(
     () => transitionLines.slice(0, visibleCount).slice(-9).reverse(),
@@ -897,24 +791,50 @@ function TransitionScreen({ selectedTeam, onDone }) {
   );
 }
 
-function GroupOverviewScreen({ selectedTeam, onNext, onBack }) {
-  const selectedGroup = GROUPS.find((group) => group.id === selectedTeam.group) || GROUPS[5];
-  const opponents = selectedGroup.teams.filter((team) => team.name !== selectedTeam.name);
+function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
+  const selectedGroup = gameRun?.chinaGroup || GROUPS.find((group) => group.id === selectedTeam.group) || GROUPS[5];
+  const opponents = selectedGroup.teams.filter((team) => team.code !== "cn" && team.code !== selectedTeam.code);
   const opponentA = opponents[0] || { code: "nl", name: "荷兰" };
   const opponentB = opponents[1] || { code: "se", name: "瑞典" };
   const opponentC = opponents[2] || { code: "tn", name: "突尼斯" };
-  const standingRows = [
-    { rank: "1", team: opponentA, record: "2-1-0", goals: "5/2", points: "7" },
-    { rank: "2", team: opponentB, record: "1-1-1", goals: "4/4", points: "4" },
-    { rank: "3", team: { code: "cn", name: "中国队" }, record: "1-1-1", goals: "4/4", points: "4", china: true },
-    { rank: "4", team: opponentC, record: "0-1-2", goals: "2/5", points: "1" },
-  ];
+  const chinaStanding = selectedGroup.standings?.find((row) => row.team.code === "cn");
+  const chinaAdvanced = gameRun?.groupAdvancers?.some((team) => team.code === "cn") ?? true;
+  const standingRows = selectedGroup.standings
+    ? selectedGroup.standings.map((row, index) => ({
+        rank: String(index + 1),
+        team: row.team,
+        record: `${row.wins}-${row.draws}-${row.losses}`,
+        goals: `${row.gf}/${row.ga}`,
+        points: String(row.points),
+        china: row.team.code === "cn",
+      }))
+    : [
+        { rank: "1", team: opponentA, record: "2-1-0", goals: "5/2", points: "7" },
+        { rank: "2", team: opponentB, record: "1-1-1", goals: "4/4", points: "4" },
+        { rank: "3", team: { code: "cn", name: "中国队" }, record: "1-1-1", goals: "4/4", points: "4", china: true },
+        { rank: "4", team: opponentC, record: "0-1-2", goals: "2/5", points: "1" },
+      ];
   const groupsWithoutChinaGroup = GROUPS.filter((group) => group.id !== selectedGroup.id);
   const previewGroups = groupsWithoutChinaGroup.length % 2 === 0 ? groupsWithoutChinaGroup : GROUPS;
-  const otherGroups = previewGroups.map((group) => [
-    `${group.id}组`,
-    group.id === selectedGroup.id ? `中国队 / ${opponentA.name}` : GROUP_ADVANCE_PREVIEW[group.id],
-  ]);
+  const otherGroups = gameRun?.groupResults
+    ? gameRun.groupResults.map((group) => [
+        `${group.id}组`,
+        group.standings.slice(0, 2).map((row) => row.team.name).join(" / "),
+      ])
+    : previewGroups.map((group) => [
+        `${group.id}组`,
+        group.id === selectedGroup.id ? `中国队 / ${opponentA.name}` : GROUP_ADVANCE_PREVIEW[group.id],
+      ]);
+  const chinaMatches = gameRun?.chinaMatches?.length
+    ? gameRun.chinaMatches.map((match) => ({
+        score: `${match.chinaGoals}:${match.opponentGoals}`,
+        opponent: match.opponent,
+      }))
+    : [
+        { score: "1:2", opponent: opponentA },
+        { score: "2:1", opponent: opponentC },
+        { score: "1:1", opponent: opponentB },
+      ];
 
   return (
     <PageShell className="group-screen">
@@ -922,12 +842,12 @@ function GroupOverviewScreen({ selectedTeam, onNext, onBack }) {
       <div className="result-card group-result">
         <img className="group-trophy" src="/assets/worldcup-trophy-cutout.png" alt="" />
         <div className="group-result-copy">
-          <h2>中国队压线活了！</h2>
+          <h2>{chinaAdvanced ? "中国队压线活了！" : "中国队梦醒小组赛"}</h2>
           <p>
-            <b>1</b> 胜 <b>1</b> 平 <b>1</b> 负，积 <b className="red-number">4</b> 分
+            <b>{chinaStanding?.wins ?? 1}</b> 胜 <b>{chinaStanding?.draws ?? 1}</b> 平 <b>{chinaStanding?.losses ?? 1}</b> 负，积 <b className="red-number">{chinaStanding?.points ?? 4}</b> 分
           </p>
-          <div className="status-chip green"><span>✓</span> 小组第三 · 晋级 32 强</div>
-          <em>数学还没放弃我们  宇宙也没来得及关门</em>
+          <div className={cx("status-chip", chinaAdvanced && "green")}><span>{chinaAdvanced ? "✓" : "×"}</span> {chinaAdvanced ? "晋级 32 强" : "小组赛出局"}</div>
+          <em>{chinaAdvanced ? "数学还没放弃我们  宇宙也没来得及关门" : "这条宇宙线先到这里  下一条再整活"}</em>
         </div>
       </div>
       <section className="data-panel standings-panel">
@@ -955,18 +875,14 @@ function GroupOverviewScreen({ selectedTeam, onNext, onBack }) {
       </section>
       <section className="data-panel compact-panel group-matches-panel">
         <header><span></span>中国队三场<i></i></header>
-        {[
-          { score: "1:2", opponent: opponentA },
-          { score: "2:1", opponent: opponentC },
-          { score: "1:1", opponent: opponentB },
-        ].map((match) => (
+        {chinaMatches.map((match) => (
           <div className="match-row group-match-row" key={`${match.score}-${match.opponent.name}`}>
             <span className="match-team"><FlagIcon code="cn" /> 中国队</span>
             <strong>{match.score}</strong>
             <span className="match-team match-team-away">{match.opponent.name} <FlagIcon code={match.opponent.code} /></span>
           </div>
         ))}
-        <p>输得有尊严  赢得很突然  平得刚刚好</p>
+        <p>{chinaAdvanced ? "输得有尊严  赢得很突然  平得刚刚好" : "算分器关机  但段子还在"}</p>
       </section>
       <section className="other-groups">
         <header><span></span>晋级队伍速览<i></i></header>
@@ -1066,10 +982,11 @@ function AdvancementBoard({ stage }) {
   );
 }
 
-function KnockoutScreen({ roundIndex, setRoundIndex, onFinal, onBack }) {
-  const round = KNOCKOUT_ROUNDS[roundIndex];
+function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack }) {
+  const rounds = gameRun?.knockoutRounds?.length ? gameRun.knockoutRounds : KNOCKOUT_ROUNDS;
+  const round = rounds[roundIndex] || rounds[0];
   const progress = roundIndex + 1;
-  const advancementStage = getAdvancementStage(progress);
+  const advancementStage = gameRun?.advancementStages?.[roundIndex] || getAdvancementStage(progress);
   const [visibleReportCount, setVisibleReportCount] = useState(1);
   const [reportRoundIndex, setReportRoundIndex] = useState(roundIndex);
   const reportRef = useRef(null);
@@ -1104,7 +1021,7 @@ function KnockoutScreen({ roundIndex, setRoundIndex, onFinal, onBack }) {
 
   const handleNext = () => {
     if (!reportComplete) return;
-    if (roundIndex >= KNOCKOUT_ROUNDS.length - 1) {
+    if (roundIndex >= rounds.length - 1) {
       onFinal();
       return;
     }
@@ -1432,12 +1349,13 @@ function MiraclePathLine({ row }) {
   );
 }
 
-function FinalScreen({ values, selectedTeam, onRestart, onBack, result = "champion" }) {
+function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result = "champion" }) {
   const [qrSrc, setQrSrc] = useState("");
   const reportRef = useRef(null);
   const selectedCode = selectedTeam.code || "jp";
-  const isFailure = result === "failure";
-  const pathRows = isFailure
+  const resultState = gameRun?.settlement?.result || result;
+  const isFailure = resultState === "failure";
+  const fallbackPathRows = isFailure
     ? [
         { type: "replace", label: "替换", verb: "贴上", targetCode: selectedCode, targetName: selectedTeam.name },
         { type: "group", label: "小组赛", text: `${selectedTeam.group} 组压线晋级` },
@@ -1453,15 +1371,19 @@ function FinalScreen({ values, selectedTeam, onRestart, onBack, result = "champi
         { type: "match", label: "半决赛", score: "2:1", opponentCode: "ar", opponentName: "阿根廷" },
         { type: "match", label: "决赛", score: "3:2", opponentCode: "br", opponentName: "巴西", final: true },
       ];
+  const pathRows = gameRun?.pathRows?.length ? gameRun.pathRows : fallbackPathRows;
   const finalMatchRow = [...pathRows].reverse().find((row) => row.type === "match" && row.final);
+  const failureStageText = finalMatchRow?.label ? `止步 ${finalMatchRow.label}` : "小组赛出局";
   const settlementCharacter = getSettlementCharacterAsset({
-    result,
-    defeatedOpponentCode: finalMatchRow?.opponentCode,
-    defeatedOpponentName: finalMatchRow?.opponentName,
-    failureVariant: "var-frozen",
+    result: resultState,
+    defeatedOpponentCode: gameRun?.settlement?.defeatedOpponentCode || finalMatchRow?.opponentCode,
+    defeatedOpponentName: gameRun?.settlement?.defeatedOpponentName || finalMatchRow?.opponentName,
+    failureReason: gameRun?.settlement?.failureReason,
+    failureSeed: gameRun?.settlement?.failureSeed,
   });
 
   const copyLink = async () => {
+    track("share_click", { action: "copy_link", result: resultState });
     try {
       await navigator.clipboard.writeText(window.location.href);
     } catch {
@@ -1471,6 +1393,7 @@ function FinalScreen({ values, selectedTeam, onRestart, onBack, result = "champi
 
   const saveReport = async () => {
     if (!reportRef.current) return;
+    track("share_click", { action: "save_report", result: resultState });
     try {
       const dataUrl = await toPng(reportRef.current, {
         cacheBust: true,
@@ -1519,25 +1442,21 @@ function FinalScreen({ values, selectedTeam, onRestart, onBack, result = "champi
               <span className="final-hero-title-text">{isFailure ? "梦醒了！" : "世界杯冠军！"}</span>
             </h2>
             <p>{isFailure ? "请先别关机  宇宙线还在加载下一条" : "中国队历史首次夺得世界杯冠军"}</p>
-            <span className="final-hero-note">{isFailure ? "止步 16 强  但这局已经够离谱" : "本局建议收藏  现实服暂未同步"}</span>
+            <span className="final-hero-note">{isFailure ? `${failureStageText}  但这局已经够离谱` : "本局建议收藏  现实服暂未同步"}</span>
           </div>
-          {isFailure ? (
-            <div className="failure-hero-mark">16</div>
-          ) : (
-            <img
-              className="final-defeated-mascot"
-              src={settlementCharacter.src}
-              alt={settlementCharacter.alt}
-              style={{ "--character-display-scale": String(settlementCharacter.displayScale || 1) }}
-            />
-          )}
+          <img
+            className="final-defeated-mascot"
+            src={settlementCharacter.src}
+            alt={settlementCharacter.alt}
+            style={{ "--character-display-scale": String(settlementCharacter.displayScale || 1) }}
+          />
         </div>
         <section className={cx("path-panel", isFailure && "failure-path-panel")}>
           <header><Trophy size={18} /> 奇迹路径</header>
           {pathRows.map((row) => (
             <div className={cx("path-row", `path-row-${row.type}`, row.final && "final-row")} key={row.label}>
               <MiraclePathLine row={row} />
-              {row.final ? <small>{isFailure ? "荷兰队看完战报  表示这宇宙线也挺累" : "巴西队看完比分  申请重开宇宙线"}</small> : null}
+              {row.final ? <small>{isFailure ? `${row.opponentName}队看完战报  表示这宇宙线也挺累` : `${row.opponentName}队看完比分  申请重开宇宙线`}</small> : null}
             </div>
           ))}
         </section>
@@ -1583,14 +1502,29 @@ export function App() {
   const [, setMusicOn] = useState(true);
   const [attributes, setAttributes] = useState(attributesFromArray([5, 5, 5, 5, 5, 5]));
   const [selectedTeam, setSelectedTeam] = useState({ code: "jp", flag: "🇯🇵", name: "日本", group: "F" });
+  const [gameRun, setGameRun] = useState(null);
   const [roundIndex, setRoundIndex] = useState(0);
   const appRef = useRef(null);
 
   const go = useCallback((nextScreen) => setScreen(nextScreen), []);
 
+  const startSimulation = useCallback(() => {
+    const run = simulateWorldCupRun({
+      attributes,
+      selectedTeam,
+      seed: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    });
+    track("team_selected", { teamCode: selectedTeam.code, group: selectedTeam.group });
+    setGameRun(run);
+    setRoundIndex(0);
+    setScreen("transition");
+  }, [attributes, selectedTeam]);
+
   const restart = () => {
+    track("restart", { from: screen });
     setAttributes(attributesFromArray([5, 5, 5, 5, 5, 5]));
     setSelectedTeam({ code: "jp", flag: "🇯🇵", name: "日本", group: "F" });
+    setGameRun(null);
     setRoundIndex(0);
     setScreen("home");
   };
@@ -1598,6 +1532,33 @@ export function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [screen]);
+
+  useEffect(() => {
+    track("page_view", { screen });
+
+    if (screen === "group" && gameRun) {
+      track("group_stage_result", {
+        run: gameRun.id,
+        result: gameRun.groupAdvancers.some((team) => team.code === "cn") ? "advanced" : "failed",
+        teamCode: gameRun.selectedTeam.code,
+      });
+    }
+
+    if (screen === "knockout" && gameRun?.knockoutRounds?.[roundIndex]) {
+      const round = gameRun.knockoutRounds[roundIndex];
+      track("knockout_result", {
+        run: gameRun.id,
+        round: round.round || round.title,
+        opponentCode: round.opponent.code,
+        result: round.match?.chinaGoals > round.match?.opponentGoals ? "win" : "loss",
+      });
+    }
+
+    if ((screen === "final" || screen === "failure") && gameRun) {
+      track("final_result", { run: gameRun.id, result: gameRun.result });
+      track(gameRun.result === "champion" ? "champion" : "failed", { run: gameRun.id, teamCode: gameRun.selectedTeam.code });
+    }
+  }, [screen, gameRun, roundIndex]);
 
   useGSAP(
     () => {
@@ -1615,35 +1576,49 @@ export function App() {
   return (
     <main className="app" ref={appRef}>
       <div className="phone-shell">
-        {screen === "home" ? <HomeScreen onStart={() => go("attributes")} setMusicOn={setMusicOn} /> : null}
+        {screen === "home" ? <HomeScreen onStart={() => { track("game_start"); go("attributes"); }} setMusicOn={setMusicOn} /> : null}
         {screen === "attributes" ? (
-          <AttributeScreen values={attributes} setValues={setAttributes} onNext={() => go("replace")} onBack={() => go("home")} />
+          <AttributeScreen
+            values={attributes}
+            setValues={setAttributes}
+            onNext={() => {
+              track("attribute_submit", { luck: attributes.luck });
+              go("replace");
+            }}
+            onBack={() => go("home")}
+          />
         ) : null}
         {screen === "replace" ? (
           <ReplacementScreen
             selected={selectedTeam}
             setSelected={setSelectedTeam}
-            onNext={() => go("transition")}
+            onNext={startSimulation}
             onBack={() => go("attributes")}
           />
         ) : null}
-        {screen === "transition" ? <TransitionScreen selectedTeam={selectedTeam} onDone={() => go("group")} /> : null}
+        {screen === "transition" ? <TransitionScreen selectedTeam={selectedTeam} gameRun={gameRun} onDone={() => go("group")} /> : null}
         {screen === "group" ? (
-          <GroupOverviewScreen selectedTeam={selectedTeam} onNext={() => go("knockout")} onBack={() => go("replace")} />
+          <GroupOverviewScreen
+            selectedTeam={selectedTeam}
+            gameRun={gameRun}
+            onNext={() => go(gameRun?.knockoutRounds?.length ? "knockout" : "failure")}
+            onBack={() => go("replace")}
+          />
         ) : null}
         {screen === "knockout" ? (
           <KnockoutScreen
             roundIndex={roundIndex}
             setRoundIndex={setRoundIndex}
-            onFinal={() => go("final")}
+            gameRun={gameRun}
+            onFinal={() => go(gameRun?.result === "failure" ? "failure" : "final")}
             onBack={() => go("group")}
           />
         ) : null}
         {screen === "final" ? (
-          <FinalScreen values={attributes} selectedTeam={selectedTeam} onRestart={restart} onBack={() => go("knockout")} />
+          <FinalScreen values={attributes} selectedTeam={selectedTeam} gameRun={gameRun} onRestart={restart} onBack={() => go("knockout")} />
         ) : null}
         {screen === "failure" ? (
-          <FinalScreen values={attributes} selectedTeam={selectedTeam} result="failure" onRestart={restart} onBack={() => go("knockout")} />
+          <FinalScreen values={attributes} selectedTeam={selectedTeam} gameRun={gameRun} result="failure" onRestart={restart} onBack={() => go(gameRun?.knockoutRounds?.length ? "knockout" : "group")} />
         ) : null}
       </div>
     </main>
