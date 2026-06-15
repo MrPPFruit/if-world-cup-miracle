@@ -2,7 +2,7 @@ import { generateMatchCommentary, generateTransitionCommentary, getFailureReason
 import { CHINA_CODE, championChance, getChinaMatchPower, scoreMatch } from "./model.js";
 import { chance, createRng, pick, stableHash } from "./random.js";
 import { CHINA_TEAM, GROUP_MATCH_PATTERN, GROUPS, TEAM_BY_CODE, getTeamByCode } from "./teams.js";
-import { ZERO_LUCK_HIDDEN_CHAMPION_ROUTE, isZeroLuckHiddenChampionConfig } from "./zeroLuckRoute.js";
+import { getZeroLuckHiddenChampionRoute } from "./zeroLuckRoute.js";
 
 const ROUND_META = [
   { key: "R32", label: "32强", title: "32 强战", status: "晋级 16 强", next: "进入 16 强  梦继续做", stageTitle: "16 强席位" },
@@ -77,10 +77,10 @@ function createGroupMatch({ home, away, attributes, stage, rng }) {
   };
 }
 
-function getFixedZeroGroupMatch(home, away) {
+function getFixedZeroGroupMatch(home, away, zeroHiddenRoute) {
   const chinaIsHome = home.code === CHINA_CODE;
   const opponent = chinaIsHome ? away : home;
-  const fixed = ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.groupResults.find((match) => match.opponentCode === opponent.code);
+  const fixed = zeroHiddenRoute?.groupResults?.find((match) => match.opponentCode === opponent.code);
   if (!fixed) return null;
 
   return {
@@ -116,7 +116,7 @@ function createChampionGroupMatch({ home, away, attributes, rng, index }) {
   };
 }
 
-function simulateGroup(group, { attributes, rng, replacedTeam, willChampion, isZeroHidden }) {
+function simulateGroup(group, { attributes, rng, replacedTeam, willChampion, zeroHiddenRoute }) {
   const standings = new Map(group.teams.map((team) => [team.code, createStanding(team)]));
   const matches = [];
   let chinaMatchIndex = 0;
@@ -127,8 +127,8 @@ function simulateGroup(group, { attributes, rng, replacedTeam, willChampion, isZ
     const hasChina = home.code === CHINA_CODE || away.code === CHINA_CODE;
     let match = null;
 
-    if (group.id === replacedTeam.group && hasChina && isZeroHidden) {
-      match = getFixedZeroGroupMatch(home, away);
+    if (group.id === replacedTeam.group && hasChina && zeroHiddenRoute) {
+      match = getFixedZeroGroupMatch(home, away, zeroHiddenRoute);
     }
     if (!match && group.id === replacedTeam.group && hasChina && willChampion) {
       match = createChampionGroupMatch({ home, away, attributes, rng, index: chinaMatchIndex });
@@ -260,12 +260,12 @@ function createAdvancementStage({ roundIndex, remaining, nextOpponent, finalOppo
   };
 }
 
-function simulateKnockout({ attributes, rng, advancers, replacedTeam, willChampion, isZeroHidden }) {
+function simulateKnockout({ attributes, rng, advancers, replacedTeam, willChampion, zeroHiddenRoute }) {
   if (!advancers.some((team) => team.code === CHINA_CODE)) {
     return { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "groupExit" };
   }
 
-  const fixedRoute = isZeroHidden ? ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.knockoutResults : null;
+  const fixedRoute = zeroHiddenRoute?.knockoutResults || null;
   const championRoute = fixedRoute
     ? fixedRoute.map((match) => getTeamByCode(match.opponentCode))
     : getFallbackChampionRoute(advancers, replacedTeam, rng);
@@ -349,18 +349,19 @@ function createPathRows({ selectedTeam, groupResult, knockout }) {
 export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now() } = {}) {
   const replacedTeam = normalizeSelectedTeam(selectedTeam);
   const rng = createRng(`${seed}:${stableHash(JSON.stringify(attributes || {}))}:${replacedTeam.code}`);
-  const isZeroHidden = isZeroLuckHiddenChampionConfig(attributes, replacedTeam.code);
+  const zeroHiddenRoute = getZeroLuckHiddenChampionRoute(attributes, replacedTeam.code);
+  const isZeroHidden = Boolean(zeroHiddenRoute);
   const baseChampionChance = championChance(attributes, replacedTeam);
   const willChampion = isZeroHidden || chance(baseChampionChance, rng);
   const playableGroups = getPlayableGroups(replacedTeam);
   const groupResults = playableGroups.map((group) =>
-    simulateGroup(group, { attributes, rng, replacedTeam, willChampion, isZeroHidden }),
+    simulateGroup(group, { attributes, rng, replacedTeam, willChampion, zeroHiddenRoute }),
   );
   const chinaGroup = groupResults.find((group) => group.id === replacedTeam.group);
   const groupAdvancers = willChampion ? forceChinaIntoAdvancers(getAdvancers(groupResults), chinaGroup) : getAdvancers(groupResults);
   const chinaAdvanced = groupAdvancers.some((team) => team.code === CHINA_CODE);
   const knockout = chinaAdvanced
-    ? simulateKnockout({ attributes, rng, advancers: groupAdvancers, replacedTeam, willChampion, isZeroHidden })
+    ? simulateKnockout({ attributes, rng, advancers: groupAdvancers, replacedTeam, willChampion, zeroHiddenRoute })
     : { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "groupExit" };
   const result = willChampion && knockout.result === "champion" ? "champion" : "failure";
   const chinaMatches = chinaGroup.matches
@@ -384,8 +385,10 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
     replacedTeam,
     rankingSnapshotDate: "2026-06-11",
     championChance: baseChampionChance,
-    zeroLuckExperienceChance: isZeroHidden ? ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.experienceChance : 0,
+    zeroLuckExperienceChance: isZeroHidden ? 0.0309 : 0,
     isZeroHidden,
+    zeroLuckRouteId: zeroHiddenRoute?.id || null,
+    zeroLuckProfileId: zeroHiddenRoute?.matchedProfile?.id || null,
     result,
     groupResults,
     chinaGroup,

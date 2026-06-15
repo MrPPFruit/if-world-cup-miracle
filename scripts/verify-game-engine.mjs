@@ -3,7 +3,14 @@ import { ATTRIBUTE_KEYS, ZERO_LUCK_CHAMPION_ATTRIBUTES, championChance, expected
 import { createRng } from "../src/game/random.js";
 import { simulateWorldCupRun } from "../src/game/simulation.js";
 import { GROUPS, RANKING_SNAPSHOT, TEAMS, getTeamByCode } from "../src/game/teams.js";
-import { ZERO_LUCK_HIDDEN_CHAMPION_ROUTE, isZeroLuckHiddenChampionConfig } from "../src/game/zeroLuckRoute.js";
+import {
+  ZERO_LUCK_ATTRIBUTE_PROFILES,
+  ZERO_LUCK_HIDDEN_CHAMPION_ROUTE,
+  ZERO_LUCK_HIDDEN_CHAMPION_ROUTES,
+  getZeroLuckHiddenChampionRoute,
+  isOriginalJapanFinalConfig,
+  isZeroLuckHiddenChampionConfig,
+} from "../src/game/zeroLuckRoute.js";
 
 assert.equal(RANKING_SNAPSHOT.officialUpdate, "2026-06-11");
 assert.equal(TEAMS.length, 48);
@@ -12,10 +19,11 @@ assert.equal(new Set(TEAMS.map((team) => team.code)).size, 48);
 assert.deepEqual(Object.keys(ZERO_LUCK_CHAMPION_ATTRIBUTES), ATTRIBUTE_KEYS);
 assert.equal(ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.replacedTeamCode, "nl");
 assert.equal(ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.finalOpponentCode, "jp");
-assert.equal(ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.experienceChance, 0.03);
+assert.equal(ZERO_LUCK_HIDDEN_CHAMPION_ROUTES.length, 9);
 assert.equal(isZeroLuckHiddenChampionConfig(ZERO_LUCK_CHAMPION_ATTRIBUTES, "nl"), true);
-assert.equal(isZeroLuckHiddenChampionConfig({ ...ZERO_LUCK_CHAMPION_ATTRIBUTES, defense: 8 }, "nl"), false);
-assert.equal(isZeroLuckHiddenChampionConfig(ZERO_LUCK_CHAMPION_ATTRIBUTES, "jp"), false);
+assert.equal(isOriginalJapanFinalConfig(ZERO_LUCK_CHAMPION_ATTRIBUTES, "nl"), true);
+assert.equal(getZeroLuckHiddenChampionRoute(ZERO_LUCK_CHAMPION_ATTRIBUTES, "nl").finalOpponentCode, "jp");
+assert.equal(isZeroLuckHiddenChampionConfig(ZERO_LUCK_CHAMPION_ATTRIBUTES, "ht"), false);
 
 for (const group of GROUPS) {
   assert.equal(group.teams.length, 4, `${group.id} group should contain four teams`);
@@ -40,6 +48,29 @@ for (let index = 0; index < 300; index += 1) {
 
 assert.ok(favoriteWins > underdogWins * 2, `favoriteWins=${favoriteWins}, underdogWins=${underdogWins}`);
 
+let zeroLuckBuilds = 0;
+let hiddenProfileBuilds = 0;
+for (let attack = 0; attack <= 10; attack += 1) {
+  for (let defense = 0; defense <= 10; defense += 1) {
+    for (let midfield = 0; midfield <= 10; midfield += 1) {
+      for (let stamina = 0; stamina <= 10; stamina += 1) {
+        for (let tactics = 0; tactics <= 10; tactics += 1) {
+          if (attack + defense + midfield + stamina + tactics !== 30) continue;
+          zeroLuckBuilds += 1;
+          const attributes = { attack, defense, midfield, stamina, tactics, luck: 0 };
+          if (ZERO_LUCK_ATTRIBUTE_PROFILES.some((profile) => profile.matches(attributes))) {
+            hiddenProfileBuilds += 1;
+          }
+        }
+      }
+    }
+  }
+}
+const hiddenGlobalRate = (hiddenProfileBuilds * ZERO_LUCK_HIDDEN_CHAMPION_ROUTES.length) / (zeroLuckBuilds * TEAMS.length);
+assert.equal(zeroLuckBuilds, 7051);
+assert.equal(hiddenProfileBuilds, 1160);
+assert.ok(hiddenGlobalRate > 0.03 && hiddenGlobalRate < 0.031, hiddenGlobalRate);
+
 const zeroHiddenRun = simulateWorldCupRun({
   attributes: ZERO_LUCK_CHAMPION_ATTRIBUTES,
   selectedTeam: getTeamByCode("nl"),
@@ -53,7 +84,7 @@ assert.equal(zeroHiddenRun.pathRows.at(-1).score, "1:0");
 
 const zeroWrongRun = simulateWorldCupRun({
   attributes: ZERO_LUCK_CHAMPION_ATTRIBUTES,
-  selectedTeam: getTeamByCode("jp"),
+  selectedTeam: getTeamByCode("ht"),
   seed: "verify-zero-wrong-team",
 });
 assert.equal(zeroWrongRun.result, "failure");
