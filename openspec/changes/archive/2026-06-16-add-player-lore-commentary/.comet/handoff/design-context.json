@@ -1,0 +1,14 @@
+{
+  "change": "add-player-lore-commentary",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "3d48642437e08606ca57610a937ee9e34993ffc6f3ad5e1f6d3671a3326b0a47",
+  "files": [
+    { "path": "openspec/changes/add-player-lore-commentary/proposal.md", "sha256": "dd64116716b07f5a6b7312598b1b6142f9981bdde446a6b4cc1e1c1d55686b4d" },
+    { "path": "openspec/changes/add-player-lore-commentary/design.md", "sha256": "817794d86141fa47cad0550e6e24435a132005d07d86d48dae4856ca3c49c4aa" },
+    { "path": "openspec/changes/add-player-lore-commentary/tasks.md", "sha256": "86ae6db83a22c742590456e63c6319f7023dd80072a403a34534e9f035ac54dd" },
+    { "path": "openspec/changes/add-player-lore-commentary/specs/dynamic-commentary/spec.md", "sha256": "51e4a4ff72c53bca4cfb99915380efbc1e813e39b77f5d845e72de475748a13e" }
+  ]
+}

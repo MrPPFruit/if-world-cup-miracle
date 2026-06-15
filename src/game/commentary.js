@@ -185,6 +185,182 @@ const PLAYER_GOAL_EVENT_LINES = {
   ],
 };
 
+export const PLAYER_LORE_LINES_BY_NAME = {
+  凯恩: {
+    finish: [
+      ["冠军荒旧账刚翻篇，", "这脚射门像在给奖杯补签收单。"],
+      ["以前奖杯总爱迟到，", "现在门前倒是不肯再等。"],
+      ["拜仁那口银盘刚到手，", "射门欲望还带着开封声。"],
+    ],
+    control: [
+      ["回撤拿球很熟练，", "像把无冠剧本先压进抽屉。"],
+      ["支点做得很稳，", "奖杯焦虑暂时交给队友保管。"],
+    ],
+  },
+  登贝莱: {
+    finish: [
+      ["金球奖余温还在，", "这一下处理像巴黎夜里没散的灯。"],
+      ["从巴黎欧冠线里杀出来，", "禁区门口自带颁奖典礼回声。"],
+      ["金球先生突然提速，", "门将的备忘录当场过期。"],
+    ],
+    pace: [
+      ["左右脚都像没提前通知，", "防线只能现场猜谜。"],
+      ["一变向就把镜头甩开，", "巴黎那条冠军线又亮了一下。"],
+    ],
+    control: [
+      ["把球黏在脚边，", "金球奖话题又从看台飘下来。"],
+      ["节奏忽快忽慢，", "防守人像在读加密文件。"],
+    ],
+  },
+  姆巴佩: {
+    finish: [
+      ["金球榜还在记账，", "这脚射门先替自己写申诉材料。"],
+      ["伯纳乌快马抬头，", "禁区里没人敢眨眼。"],
+      ["登贝莱的金球影子还在，", "他把答案往球门里加速。"],
+    ],
+    pace: [
+      ["启动像把画面调成两倍速，", "防线只剩回放资格。"],
+      ["一脚油门踩到底，", "边路交通规则临时失效。"],
+    ],
+  },
+  梅西: {
+    control: [
+      ["最后一舞的光很轻，", "球却还听他小声安排。"],
+      ["把节奏拨慢半拍，", "旧时代的钟又响了一下。"],
+      ["不急着冲刺，", "足球自己先把路让出来。"],
+    ],
+    setPiece: [
+      ["站到任意球前，", "空气自动切成左脚频道。"],
+      ["助跑短得像省略号，", "人墙已经开始想往事。"],
+    ],
+    finish: [
+      ["禁区前轻轻一拨，", "时间像被他借走两秒。"],
+      ["这一下不响，", "但球门已经知道答案。"],
+    ],
+  },
+  C罗: {
+    finish: [
+      ["第六届世界杯的影子拉长，", "门前本能还是准时上班。"],
+      ["年龄写在资料页，", "抢点写在肌肉记忆里。"],
+      ["纪录本还没合上，", "他又把笔递到球门前。"],
+    ],
+    pace: [
+      ["冲刺不再讲年轻故事，", "但禁区嗅觉仍然很吵。"],
+      ["启动幅度不大，", "镜头却还是自动跟过去。"],
+    ],
+  },
+  亚马尔: {
+    pace: [
+      ["少年感还没退场，", "边路已经开始写成年人的题。"],
+      ["欧洲杯纪录还热着，", "这一趟又把年龄写成脚注。"],
+      ["一步晃开防守，", "身份证年龄看起来不太负责。"],
+    ],
+    control: [
+      ["触球轻得很小，", "看台却已经开始算未来。"],
+      ["把球停住那一下，", "青春风暴先收了半秒。"],
+    ],
+  },
+  维尼修斯: {
+    pace: [
+      ["金球旧案还没散场，", "边路先把情绪踩成加速带。"],
+      ["外线一启动，", "去年巴黎那张空椅子又被提起。"],
+      ["把防线甩开，", "像给争议另开一条跑道。"],
+    ],
+    finish: [
+      ["禁区里抬脚很狠，", "这球像在给评委席留作业。"],
+      ["射门带着一点不服气，", "球网只好先听完。"],
+    ],
+  },
+  萨拉赫: {
+    finish: [
+      ["英超奖杯和金靴账本都很熟，", "这脚又像在更新履历。"],
+      ["左脚一摆，", "安菲尔德的旧风声差点吹到这里。"],
+      ["赛季奖项还在发光，", "门前选择依旧很埃及。"],
+    ],
+    pace: [
+      ["边路提速很安静，", "下一秒防线已经少看一页。"],
+      ["把外线走成单行道，", "防守人只能补交路费。"],
+    ],
+  },
+  哈兰德: {
+    finish: [
+      ["进球机器开始校准，", "禁区像进入工业模式。"],
+      ["门前动作不花，", "但效率表直接爆灯。"],
+      ["一抬脚像系统执行命令，", "球网负责打印结果。"],
+    ],
+  },
+  贝林厄姆: {
+    control: [
+      ["双臂还没展开，", "看台已经把 Hey Jude 哼到副歌。"],
+      ["中场一拿球，", "英格兰人的希望又被调高半格。"],
+    ],
+    finish: [
+      ["后插上来得刚好，", "庆祝动作差点提前预约。"],
+      ["禁区前一步到位，", "比分像在等他摆姿势。"],
+    ],
+  },
+  莫德里奇: {
+    control: [
+      ["岁月从他旁边跑过，", "球还是按老路线听话。"],
+      ["外脚背轻轻一弹，", "中场像被翻回经典章节。"],
+      ["最后一舞不急，", "节奏先替他慢慢鞠躬。"],
+    ],
+    setPiece: [
+      ["站到球前，", "老派弧线开始整理衣领。"],
+    ],
+  },
+  内马尔: {
+    control: [
+      ["桑巴滤镜一打开，", "防守人先确认脚踝还在不在剧本里。"],
+      ["脚下花活不多说，", "巴西看台已经先眨眼。"],
+    ],
+    finish: [
+      ["伤病阴影还没散完，", "这一下倒像把灯重新拧亮。"],
+      ["禁区前轻轻一晃，", "巴西十号的旧故事又冒出头。"],
+    ],
+    setPiece: [
+      ["站到定位球前，", "桑巴弧线开始翻旧相册。"],
+    ],
+  },
+  德布劳内: {
+    control: [
+      ["传球线路像提前看过地图，", "防守人还在找入口。"],
+      ["一脚直塞很冷静，", "中场像被开了上帝视角。"],
+    ],
+    setPiece: [
+      ["定位球落点很准，", "像快递单上写着禁区中央。"],
+    ],
+  },
+  孙兴慜: {
+    finish: [
+      ["笑容还没出现，", "右脚先把危险寄出去。"],
+      ["亚洲锋线代表一抬头，", "门将开始想远角。"],
+    ],
+    pace: [
+      ["反击一启动，", "后卫只能在身后看背影说明书。"],
+      ["边路冲起来，", "亚洲德比的温度直接上墙。"],
+    ],
+  },
+  卢卡库: {
+    finish: [
+      ["门前存在感很大，", "禁区像临时被加宽。"],
+      ["支点先把人扛住，", "射门再把问题扔给门将。"],
+    ],
+    control: [
+      ["背身拿球很硬，", "防线像撞上移动路障。"],
+    ],
+  },
+  罗德里: {
+    control: [
+      ["金球中场把节奏压住，", "比赛像被装进保险箱。"],
+      ["站在中路不慌，", "对手的反击先被盖章退回。"],
+    ],
+    block: [
+      ["提前站住线路，", "危险球被金球级别地没收。"],
+    ],
+  },
+};
+
 function getTeamProfiles(team) {
   return PLAYER_PROFILES_BY_TEAM[team?.code] || [
     { name: `${team?.name || "对手"}队长`, position: "midfielder", roles: ["control"] },
@@ -200,6 +376,20 @@ function pickPlayerByRole(rng, team, preferredRoles = []) {
 function pickRoleForPlayer(rng, player, preferredRoles = []) {
   const matching = (player?.roles || []).filter((role) => preferredRoles.includes(role));
   return pick(rng, matching.length ? matching : player?.roles || preferredRoles);
+}
+
+function getPlayerLoreCandidates(player, role) {
+  return PLAYER_LORE_LINES_BY_NAME[player?.name]?.[role]?.map((item) => item.join("")) || [];
+}
+
+function normalizeLineCandidates(lines) {
+  return (lines || []).map((item) => (Array.isArray(item) ? item.join("") : item));
+}
+
+function pickPlayerEventText(rng, player, role, fallbackLines, ledger) {
+  const loreCandidates = getPlayerLoreCandidates(player, role);
+  const fallbackCandidates = normalizeLineCandidates(fallbackLines || PLAYER_EVENT_LINES.control);
+  return pickUnique(rng, [...loreCandidates, ...fallbackCandidates], ledger);
 }
 
 function getOpponentTier(team) {
@@ -381,7 +571,9 @@ function makeGoalLines({ match, opponent, rng, baseId, ledger }) {
     const goalPool = isChina ? chinaGoalTexts : PLAYER_GOAL_EVENT_LINES[role] || opponentGoalTexts;
     const text = pickUnique(
       rng,
-      goalPool.map((item) => item.join("")),
+      isChina
+        ? goalPool.map((item) => item.join(""))
+        : [...getPlayerLoreCandidates(scorer, role), ...goalPool.map((item) => item.join(""))],
       ledger,
       () => `${baseId}${isChina ? "中国队" : opponent.name}第${index + 1}次改写比分，记分牌只好继续加班。`,
     );
@@ -426,7 +618,7 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
   const opponentTierPool = OPPONENT_TIER_LINES[opponentTier] || OPPONENT_TIER_LINES.default;
   const opponentStar = pickPlayerByRole(rng, opponent, ["finish", "control", "pace", "setPiece"]);
   const starRole = pickRoleForPlayer(rng, opponentStar, ["finish", "control", "pace", "setPiece"]);
-  const starText = pickUnique(rng, (PLAYER_EVENT_LINES[starRole] || PLAYER_EVENT_LINES.control).map((item) => item.join("")), copyLedger);
+  const starText = pickPlayerEventText(rng, opponentStar, starRole, PLAYER_EVENT_LINES[starRole] || PLAYER_EVENT_LINES.control, copyLedger);
   const styleA = pickUnique(rng, styleLines.map((item) => item.join("")), copyLedger);
   const styleB = luck >= 6 ? pickUnique(rng, LUCK_LINES.map((item) => item.join("")), copyLedger) : null;
   const isWin = match.chinaGoals > match.opponentGoals || (match.penalties && match.penalties[0] > match.penalties[1]);
@@ -741,11 +933,13 @@ export function generateTransitionCommentary({ selectedTeam, groupMatches, attri
     ]),
     ...groupMatches.flatMap((match, index) => {
       const opponent = opponents[index];
+      const preferredRoles = index === 0 ? ["finish", "pace"] : index === 1 ? ["control", "setPiece"] : ["save", "block"];
       const star = pickPlayerByRole(
         { next: () => ((index + 1) * 0.271828) % 1 },
         opponent,
-        index === 0 ? ["finish", "pace"] : index === 1 ? ["control", "setPiece"] : ["save", "block"],
+        preferredRoles,
       );
+      const starRole = pickRoleForPlayer(rng, star, preferredRoles);
       return [
         richLine(`transition-group-${index}-kickoff`, [
           part(`${12 + index * 19}’`, PART_KIND.TIME),
@@ -764,10 +958,16 @@ export function generateTransitionCommentary({ selectedTeam, groupMatches, attri
         richLine(`transition-group-${index}-star`, [
           part(`${28 + index * 13}’`, PART_KIND.TIME),
           part(star.name, PART_KIND.PLAYER),
-          uniquePart(ledger, rng, starIntroCopies),
+          part(pickPlayerEventText(rng, star, starRole, starIntroCopies, ledger)),
           part("中国队", PART_KIND.TEAM),
           uniquePart(ledger, rng, starPressureCopies),
-        ]),
+        ], {
+          playerEvent: {
+            name: star.name,
+            teamCode: opponent.code,
+            role: starRole,
+          },
+        }),
         richLine(`transition-group-${index}-swing`, [
           part(`${39 + index * 13}’`, PART_KIND.TIME),
           part(opponent.name, PART_KIND.TEAM),

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { COMPACT_COPY_LIMITS, GOAL_PLAYER_ROLES } from "../src/game/commentary.js";
+import { COMPACT_COPY_LIMITS, GOAL_PLAYER_ROLES, PLAYER_LORE_LINES_BY_NAME } from "../src/game/commentary.js";
 import { createBracketSlotMap, getFirstMeetingMatchId, getTeamSlot, isLegalFinalPair } from "../src/game/bracket.js";
 import { ATTRIBUTE_KEYS, ZERO_LUCK_CHAMPION_ATTRIBUTES, championChance, expectedGoals, getChinaSkill, scoreMatch } from "../src/game/model.js";
 import { createRng } from "../src/game/random.js";
@@ -66,6 +66,30 @@ for (const code of allTeamCodes) {
     for (const role of player.roles) {
       assert.ok(allowedRoles.has(role), `${code}:${player.name} invalid role ${role}`);
       assert.ok(positionRoleMatrix[player.position]?.has(role), `${code}:${player.name} incompatible ${player.position}/${role}`);
+    }
+  }
+}
+
+const allProfilesByName = new Map();
+for (const profiles of Object.values(PLAYER_PROFILES_BY_TEAM)) {
+  for (const player of profiles) {
+    allProfilesByName.set(player.name, player);
+  }
+}
+
+assert.ok(Object.keys(PLAYER_LORE_LINES_BY_NAME).length >= 12, "player lore should cover a meaningful star set");
+assert.equal(allProfilesByName.has("格列兹曼"), false, "France player profiles should not include retired international Griezmann");
+assert.ok(allProfilesByName.has("登贝莱"), "France player profiles should include Dembele for current lore");
+
+for (const [playerName, rolePools] of Object.entries(PLAYER_LORE_LINES_BY_NAME)) {
+  const profile = allProfilesByName.get(playerName);
+  assert.ok(profile, `lore player missing profile: ${playerName}`);
+  for (const [role, lines] of Object.entries(rolePools)) {
+    assert.ok(profile.roles.includes(role), `${playerName} lore role not in player profile: ${role}`);
+    assert.ok(Array.isArray(lines) && lines.length >= 1, `${playerName}:${role} should include lore lines`);
+    for (const lineParts of lines) {
+      assert.ok(Array.isArray(lineParts) && lineParts.length >= 1, `${playerName}:${role} lore line should be parts`);
+      assert.ok(lineParts.join("").length >= 8, `${playerName}:${role} lore line too short`);
     }
   }
 }

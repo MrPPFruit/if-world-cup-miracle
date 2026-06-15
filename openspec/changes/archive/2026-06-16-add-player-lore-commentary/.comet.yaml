@@ -1,0 +1,15 @@
+workflow: full
+phase: archive
+build_mode: direct
+isolation: branch
+verify_mode: null
+design_doc: docs/superpowers/specs/2026-06-16-player-lore-commentary-design.md
+plan: null
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-06-16-add-player-lore-commentary-verify.md
+branch_status: handled
+verified_at: 2026-06-16
+archived: true
+handoff_context: openspec/changes/archive/2026-06-16-add-player-lore-commentary/.comet/handoff/design-context.json
+handoff_hash: 3d48642437e08606ca57610a937ee9e34993ffc6f3ad5e1f6d3671a3326b0a47
+direct_override: true
