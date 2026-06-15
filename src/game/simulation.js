@@ -1,6 +1,17 @@
 import { generateMatchCommentary, generateTransitionCommentary, getFailureReason, makeScoreText } from "./commentary.js";
+import {
+  BRACKET_MATCHES,
+  KNOCKOUT_ROUND_ORDER,
+  createBracketSlotMap,
+  getParentMatchId,
+  getSlotGroup,
+  getSlotRank,
+  getSlotTeam,
+  getTeamSlot,
+  isLegalFinalPair,
+} from "./bracket.js";
 import { CHINA_CODE, championChance, getChinaMatchPower, scoreMatch } from "./model.js";
-import { chance, createRng, pick, stableHash } from "./random.js";
+import { chance, createRng, stableHash } from "./random.js";
 import { CHINA_TEAM, GROUP_MATCH_PATTERN, GROUPS, TEAM_BY_CODE, getTeamByCode } from "./teams.js";
 import { getZeroLuckHiddenChampionRoute } from "./zeroLuckRoute.js";
 
@@ -13,6 +24,15 @@ const ROUND_META = [
 ];
 
 const ROUND_SIZES = [16, 8, 4, 2, 2];
+const ROUND_META_BY_KEY = Object.fromEntries(ROUND_META.map((meta, index) => [meta.key, { ...meta, index }]));
+const BRACKET_MATCH_IDS_BY_ROUND = Object.fromEntries(
+  KNOCKOUT_ROUND_ORDER.map((round) => [
+    round,
+    Object.entries(BRACKET_MATCHES)
+      .filter(([, match]) => match.round === round)
+      .map(([matchId]) => matchId),
+  ]),
+);
 
 function chinaForSlot(replacedTeam) {
   return {
@@ -207,10 +227,48 @@ function getAdvancers(groupResults) {
   return [...firstTwo, ...thirds.slice(0, 8)].map((row) => row.team);
 }
 
-function forceChinaIntoAdvancers(advancers, groupResult) {
-  if (advancers.some((team) => team.code === CHINA_CODE)) return advancers;
-  const chinaRow = groupResult.standings.find((row) => row.team.code === CHINA_CODE);
-  return [...advancers.slice(0, -1), chinaRow.team];
+function forceStandingSlots(groupResults, assignments) {
+  const assignmentsByGroup = new Map();
+  for (const assignment of assignments.filter(Boolean)) {
+    const groupId = getSlotGroup(assignment.slot);
+    if (!assignmentsByGroup.has(groupId)) assignmentsByGroup.set(groupId, []);
+    assignmentsByGroup.get(groupId).push({ ...assignment, rank: getSlotRank(assignment.slot) });
+  }
+
+  return groupResults.map((group) => {
+    const groupAssignments = assignmentsByGroup.get(group.id);
+    if (!groupAssignments?.length) return group;
+
+    const ordered = Array(group.standings.length).fill(null);
+    const assignedCodes = new Set();
+    for (const assignment of groupAssignments) {
+      const row = group.standings.find((standing) => standing.team.code === assignment.teamCode);
+      if (!row) continue;
+      ordered[assignment.rank - 1] = row;
+      assignedCodes.add(assignment.teamCode);
+    }
+
+    const rest = group.standings.filter((row) => !assignedCodes.has(row.team.code));
+    let restIndex = 0;
+    const standings = ordered.map((row) => row || rest[restIndex++]).filter(Boolean);
+    return { ...group, standings };
+  });
+}
+
+function prepareGroupResultsForKnockout({ groupResults, replacedTeam, willChampion, zeroHiddenRoute }) {
+  if (zeroHiddenRoute) {
+    return forceStandingSlots(groupResults, [
+      { teamCode: CHINA_CODE, slot: zeroHiddenRoute.chinaSlot },
+      { teamCode: zeroHiddenRoute.finalOpponentCode, slot: zeroHiddenRoute.finalOpponentSlot },
+    ]);
+  }
+
+  if (!willChampion) return groupResults;
+
+  const chinaGroup = groupResults.find((group) => group.id === replacedTeam.group);
+  const chinaRank = chinaGroup?.standings.findIndex((row) => row.team.code === CHINA_CODE) + 1;
+  const chinaSlot = chinaRank && chinaRank <= 2 ? `${chinaRank}${replacedTeam.group}` : `2${replacedTeam.group}`;
+  return forceStandingSlots(groupResults, [{ teamCode: CHINA_CODE, slot: chinaSlot }]);
 }
 
 function rankTeamsForKnockout(teams) {
@@ -218,24 +276,6 @@ function rankTeamsForKnockout(teams) {
     if (a.code === CHINA_CODE) return -1;
     if (b.code === CHINA_CODE) return 1;
     return b.baseRating - a.baseRating;
-  });
-}
-
-function getFallbackChampionRoute(advancers, replacedTeam, rng) {
-  const candidates = rankTeamsForKnockout(advancers).filter((team) => team.code !== CHINA_CODE);
-  const bands = [
-    candidates.filter((team) => team.baseRating >= 74 && team.baseRating < 84),
-    candidates.filter((team) => team.baseRating >= 82 && team.baseRating < 88),
-    candidates.filter((team) => team.baseRating >= 88),
-    candidates.filter((team) => team.baseRating >= 90),
-    candidates.filter((team) => team.baseRating >= 88 && team.code !== replacedTeam.code),
-  ];
-  const seen = new Set();
-  return bands.map((band, index) => {
-    const pool = band.filter((team) => !seen.has(team.code));
-    const picked = pick(pool.length ? pool : candidates.filter((team) => !seen.has(team.code)), rng) || candidates[index];
-    seen.add(picked.code);
-    return picked;
   });
 }
 
@@ -313,50 +353,148 @@ function createAdvancementStage({ roundIndex, remaining, nextOpponent, finalOppo
   };
 }
 
-function simulateKnockout({ attributes, rng, advancers, replacedTeam, willChampion, zeroHiddenRoute }) {
+function getNeutralWinner(leftTeam, rightTeam, rng) {
+  if (!leftTeam) return rightTeam;
+  if (!rightTeam) return leftTeam;
+  const ratingGap = leftTeam.baseRating - rightTeam.baseRating;
+  const leftWinChance = Math.max(0.18, Math.min(0.82, 0.5 + ratingGap / 90));
+  return rng.next() < leftWinChance ? leftTeam : rightTeam;
+}
+
+function getBracketMatchTeams(matchId, slotMap, winners) {
+  const bracketMatch = BRACKET_MATCHES[matchId];
+  if (bracketMatch.slots) {
+    return bracketMatch.slots.map((slot) => getSlotTeam(slotMap, slot));
+  }
+  return bracketMatch.children.map((childMatchId) => winners.get(childMatchId));
+}
+
+function chooseBracketWinner({ leftTeam, rightTeam, roundIndex, chinaFailureRoundIndex, willChampion, zeroHiddenRoute, rng }) {
+  const chinaTeam = [leftTeam, rightTeam].find((team) => team?.code === CHINA_CODE);
+  if (chinaTeam) {
+    const chinaWins = willChampion || roundIndex < chinaFailureRoundIndex;
+    return chinaWins ? chinaTeam : leftTeam?.code === CHINA_CODE ? rightTeam : leftTeam;
+  }
+
+  if (zeroHiddenRoute) {
+    const finalOpponent = [leftTeam, rightTeam].find((team) => team?.code === zeroHiddenRoute.finalOpponentCode);
+    if (finalOpponent) return finalOpponent;
+  }
+
+  return getNeutralWinner(leftTeam, rightTeam, rng);
+}
+
+function getNextChinaOpponent(matchId, winners) {
+  const parentMatchId = getParentMatchId(matchId);
+  if (!parentMatchId) return null;
+  const siblingMatchId = BRACKET_MATCHES[parentMatchId].children.find((childMatchId) => childMatchId !== matchId);
+  return winners.get(siblingMatchId) || null;
+}
+
+function simulateKnockout({ attributes, rng, groupResults, advancers, willChampion, zeroHiddenRoute }) {
   if (!advancers.some((team) => team.code === CHINA_CODE)) {
     return { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "groupExit" };
   }
 
-  const fixedRoute = zeroHiddenRoute?.knockoutResults || null;
-  const championRoute = fixedRoute
-    ? fixedRoute.map((match) => getTeamByCode(match.opponentCode))
-    : getFallbackChampionRoute(advancers, replacedTeam, rng);
+  if (zeroHiddenRoute && !isLegalFinalPair(zeroHiddenRoute.chinaSlot, zeroHiddenRoute.finalOpponentSlot)) {
+    return { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "invalidBracketRoute" };
+  }
+
+  const slotMap = createBracketSlotMap(groupResults);
+  const chinaSlot = getTeamSlot(slotMap, CHINA_CODE);
+  if (!chinaSlot) {
+    return { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "groupExit" };
+  }
+
   const failureRoundIndex = willChampion ? -1 : Math.floor(rng.next() * 3);
   const rounds = [];
   const stages = [];
-  let remaining = rankTeamsForKnockout(advancers).filter((team) => team.code !== CHINA_CODE);
+  const winners = new Map();
+  const semiFinalLosers = [];
   let result = "champion";
   let failureReason = null;
 
-  for (let index = 0; index < ROUND_META.length; index += 1) {
-    const meta = ROUND_META[index];
-    const willWinRound = willChampion || index < failureRoundIndex;
-    const opponent = championRoute[index] || pick(remaining, rng) || getTeamByCode("br");
-    const fixed = fixedRoute?.find((match) => match.round === meta.key);
-    const match = createKnockoutMatch({ roundMeta: meta, opponent, attributes, rng, forceWin: willWinRound, fixed });
-    const round = {
-      ...meta,
-      status: willWinRound ? meta.status : `止步 ${meta.label}`,
-      next: willWinRound ? meta.next : "查看本局结算",
-      opponent,
-      score: [match.chinaGoals, match.opponentGoals],
-      penalties: match.penalties,
-      match,
-      commentary: generateMatchCommentary({ match, opponent, attributes, roundLabel: meta.label, rng }),
-    };
-    rounds.push(round);
+  for (const roundKey of KNOCKOUT_ROUND_ORDER) {
+    const meta = ROUND_META_BY_KEY[roundKey];
+    const roundMatchIds = BRACKET_MATCH_IDS_BY_ROUND[roundKey];
+    let chinaMatchRecord = null;
 
-    remaining = remaining.filter((team) => team.code !== opponent.code);
-    const nextOpponent = championRoute[index + 1] || remaining[0];
-    stages.push(createAdvancementStage({ roundIndex: index, remaining, nextOpponent, finalOpponent: opponent, result: "champion" }));
+    for (const matchId of roundMatchIds) {
+      const [leftTeam, rightTeam] = getBracketMatchTeams(matchId, slotMap, winners);
+      const winner = chooseBracketWinner({
+        leftTeam,
+        rightTeam,
+        roundIndex: meta.index,
+        chinaFailureRoundIndex: failureRoundIndex,
+        willChampion,
+        zeroHiddenRoute,
+        rng,
+      });
+      const loser = winner?.code === leftTeam?.code ? rightTeam : leftTeam;
+      winners.set(matchId, winner);
 
-    if (!willWinRound) {
+      if (roundKey === "SF" && loser) semiFinalLosers.push(loser);
+      if (leftTeam?.code !== CHINA_CODE && rightTeam?.code !== CHINA_CODE) continue;
+
+      const opponent = leftTeam?.code === CHINA_CODE ? rightTeam : leftTeam;
+      const willWinRound = winner?.code === CHINA_CODE;
+      const fixed = zeroHiddenRoute?.knockoutResults?.find((item) => item.round === roundKey) || null;
+      const match = createKnockoutMatch({ roundMeta: meta, opponent, attributes, rng, forceWin: willWinRound, fixed });
+      chinaMatchRecord = {
+        matchId,
+        opponent,
+        willWinRound,
+        round: {
+          ...meta,
+          bracketMatchId: matchId,
+          chinaSlot,
+          status: willWinRound ? meta.status : `止步 ${meta.label}`,
+          next: willWinRound ? meta.next : "查看本局结算",
+          opponent,
+          score: [match.chinaGoals, match.opponentGoals],
+          penalties: match.penalties,
+          match,
+          commentary: generateMatchCommentary({ match, opponent, attributes, roundLabel: meta.label, rng }),
+        },
+      };
+    }
+
+    if (!chinaMatchRecord) continue;
+
+    rounds.push(chinaMatchRecord.round);
+    const aliveTeams = roundMatchIds.map((matchId) => winners.get(matchId)).filter(Boolean);
+    const remaining = aliveTeams.filter((team) => team.code !== CHINA_CODE);
+    const nextOpponent = chinaMatchRecord.willWinRound ? getNextChinaOpponent(chinaMatchRecord.matchId, winners) : null;
+    stages.push(
+      createAdvancementStage({
+        roundIndex: meta.index,
+        remaining,
+        nextOpponent,
+        finalOpponent: chinaMatchRecord.opponent,
+        result: chinaMatchRecord.willWinRound ? "champion" : "failure",
+      }),
+    );
+
+    if (!chinaMatchRecord.willWinRound) {
       result = "failure";
-      failureReason = getFailureReason(attributes, match);
-      stages[stages.length - 1] = createAdvancementStage({ roundIndex: index, remaining, nextOpponent: null, finalOpponent: opponent, result });
+      failureReason = getFailureReason(attributes, chinaMatchRecord.round.match);
       break;
     }
+  }
+
+  if (result === "champion" && rounds.length < ROUND_META.length) {
+    result = "failure";
+    failureReason = "bracketExit";
+  }
+
+  if (result === "champion" && stages.at(-1)?.podium && semiFinalLosers.length) {
+    stages[stages.length - 1] = {
+      ...stages.at(-1),
+      podium: {
+        ...stages.at(-1).podium,
+        third: semiFinalLosers.sort((left, right) => right.baseRating - left.baseRating)[0],
+      },
+    };
   }
 
   return {
@@ -407,14 +545,15 @@ export function simulateWorldCupRun({ attributes, selectedTeam, seed = Date.now(
   const baseChampionChance = championChance(attributes, replacedTeam);
   const willChampion = isZeroHidden || chance(baseChampionChance, rng);
   const playableGroups = getPlayableGroups(replacedTeam);
-  const groupResults = playableGroups.map((group) =>
+  const rawGroupResults = playableGroups.map((group) =>
     simulateGroup(group, { attributes, rng, replacedTeam, willChampion, zeroHiddenRoute }),
   );
+  const groupResults = prepareGroupResultsForKnockout({ groupResults: rawGroupResults, replacedTeam, willChampion, zeroHiddenRoute });
   const chinaGroup = groupResults.find((group) => group.id === replacedTeam.group);
-  const groupAdvancers = willChampion ? forceChinaIntoAdvancers(getAdvancers(groupResults), chinaGroup) : getAdvancers(groupResults);
+  const groupAdvancers = getAdvancers(groupResults);
   const chinaAdvanced = groupAdvancers.some((team) => team.code === CHINA_CODE);
   const knockout = chinaAdvanced
-    ? simulateKnockout({ attributes, rng, advancers: groupAdvancers, replacedTeam, willChampion, zeroHiddenRoute })
+    ? simulateKnockout({ attributes, rng, groupResults, advancers: groupAdvancers, willChampion, zeroHiddenRoute })
     : { rounds: [], advancementStages: [], finalMatch: null, result: "failure", failureReason: "groupExit" };
   const result = willChampion && knockout.result === "champion" ? "champion" : "failure";
   const chinaMatches = chinaGroup.matches

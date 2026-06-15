@@ -69,10 +69,12 @@ const match = (round, opponentCode, chinaGoals, opponentGoals, tone, penalties =
   ...(penalties ? { penalties } : {}),
 });
 
-const route = ({ id, replacedTeamCode, finalOpponentCode, knockoutResults, groupResults = [] }) => ({
+const route = ({ id, replacedTeamCode, chinaSlot, finalOpponentCode, finalOpponentSlot, knockoutResults, groupResults = [] }) => ({
   id,
   replacedTeamCode,
+  chinaSlot,
   finalOpponentCode,
+  finalOpponentSlot,
   championCharacterCode: finalOpponentCode,
   groupResults,
   knockoutResults,
@@ -82,7 +84,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-china-vs-japan",
     replacedTeamCode: "nl",
+    chinaSlot: "1F",
     finalOpponentCode: "jp",
+    finalOpponentSlot: "2F",
     groupResults: [
       { opponentCode: "jp", chinaGoals: 0, opponentGoals: 0, tone: "iron-wall" },
       { opponentCode: "se", chinaGoals: 1, opponentGoals: 0, tone: "set-piece" },
@@ -99,7 +103,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-brazil-final-argentina",
     replacedTeamCode: "br",
+    chinaSlot: "1C",
     finalOpponentCode: "ar",
+    finalOpponentSlot: "2J",
     knockoutResults: [
       match("R32", "mx", 1, 0, "survive"),
       match("R16", "de", 1, 1, "keeper", [4, 2]),
@@ -111,7 +117,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-france-final-england",
     replacedTeamCode: "fr",
+    chinaSlot: "1I",
     finalOpponentCode: "gb-eng",
+    finalOpponentSlot: "1L",
     knockoutResults: [
       match("R32", "kr", 1, 0, "stamina"),
       match("R16", "uy", 2, 1, "counter"),
@@ -123,7 +131,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-argentina-final-brazil",
     replacedTeamCode: "ar",
+    chinaSlot: "1J",
     finalOpponentCode: "br",
+    finalOpponentSlot: "2C",
     knockoutResults: [
       match("R32", "us", 1, 0, "defense"),
       match("R16", "nl", 1, 1, "keeper", [4, 3]),
@@ -135,7 +145,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-spain-final-germany",
     replacedTeamCode: "es",
+    chinaSlot: "1H",
     finalOpponentCode: "de",
+    finalOpponentSlot: "2E",
     knockoutResults: [
       match("R32", "ma", 1, 0, "midfield"),
       match("R16", "co", 2, 1, "counter"),
@@ -147,7 +159,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-germany-final-france",
     replacedTeamCode: "de",
+    chinaSlot: "1E",
     finalOpponentCode: "fr",
+    finalOpponentSlot: "2I",
     knockoutResults: [
       match("R32", "jp", 1, 0, "survive"),
       match("R16", "be", 2, 1, "counter"),
@@ -159,7 +173,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-portugal-final-spain",
     replacedTeamCode: "pt",
+    chinaSlot: "1K",
     finalOpponentCode: "es",
+    finalOpponentSlot: "1H",
     knockoutResults: [
       match("R32", "ch", 1, 0, "defense"),
       match("R16", "hr", 1, 1, "keeper", [4, 2]),
@@ -171,7 +187,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-england-final-argentina",
     replacedTeamCode: "gb-eng",
+    chinaSlot: "1L",
     finalOpponentCode: "ar",
+    finalOpponentSlot: "2J",
     knockoutResults: [
       match("R32", "eg", 1, 0, "survive"),
       match("R16", "nl", 2, 1, "counter"),
@@ -183,7 +201,9 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
   route({
     id: "zero-luck-japan-final-korea",
     replacedTeamCode: "jp",
+    chinaSlot: "1F",
     finalOpponentCode: "kr",
+    finalOpponentSlot: "1A",
     knockoutResults: [
       match("R32", "au", 1, 0, "stamina"),
       match("R16", "us", 1, 1, "keeper", [3, 1]),
