@@ -1406,12 +1406,6 @@ button {
   background: #fff;
 }
 
-.preset-row button:first-child {
-  color: #fff;
-  border-color: transparent;
-  background: linear-gradient(180deg, #4f93ff, #2669f0);
-}
-
 .random-chip {
   flex: 0 0 80%;
   justify-content: center;
@@ -1453,11 +1447,11 @@ button {
 .group-row {
   grid-template-columns: 40px 1fr;
   gap: 5px;
-  min-height: 52px;
+  min-height: 49px;
 }
 
 .group-id {
-  height: 34px;
+  height: 31px;
   border-radius: 7px;
   font-size: 15px;
   box-shadow: 0 4px 8px rgba(27, 111, 240, 0.16);
@@ -1468,7 +1462,7 @@ button {
 }
 
 .team-pill {
-  height: 35px;
+  height: 32px;
   border-color: #d6e6f8;
   border-radius: 8px;
   color: #182942;
@@ -2161,11 +2155,11 @@ button {
 }
 
 .group-screen .other-groups {
-  height: 159px;
+  height: 133px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px 6px;
-  padding: 8px 12px 10px;
+  gap: 4px 6px;
+  padding: 7px 12px 8px;
 }
 
 .group-screen .other-groups header {
@@ -2176,7 +2170,7 @@ button {
 }
 
 .group-screen .other-group-pill {
-  min-height: 24px;
+  min-height: 21px;
   padding: 2px 5px;
   display: grid;
   grid-template-columns: 23px minmax(0, 1fr);
@@ -2469,7 +2463,7 @@ button {
 }
 
 .commentary-panel {
-  height: 348px;
+  height: 334px;
   margin-top: 8px;
   padding: 12px 18px 13px;
   border-radius: 18px;
@@ -2560,7 +2554,7 @@ button {
 }
 
 .bracket-section {
-  height: 197px;
+  height: 179px;
   margin-top: 8px;
   padding: 8px 12px 9px;
   border-radius: 18px;
@@ -2596,7 +2590,7 @@ button {
 }
 
 .advancement-board {
-  height: 154px;
+  height: 136px;
   padding: 7px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -3515,7 +3509,7 @@ button {
 }
 
 .final-bottom-grid {
-  height: 198px;
+  height: 184px;
   margin-top: 10px;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3524,7 +3518,7 @@ button {
 
 .mini-info-panel {
   min-height: 0;
-  height: 198px;
+  height: 184px;
   padding: 10px 9px 12px;
   box-shadow: none;
   overflow: hidden;
@@ -3539,8 +3533,8 @@ button {
 }
 
 .mini-info-panel .radar-chart {
-  width: 160px;
-  max-width: 160px;
+  width: 148px;
+  max-width: 148px;
   margin: 4px auto 0;
 }
 
@@ -3567,8 +3561,8 @@ button {
 }
 
 .qr-box {
-  width: 90px;
-  height: 90px;
+  width: 82px;
+  height: 82px;
   margin-top: 8px;
 }
 
@@ -3887,21 +3881,21 @@ button {
 
 .attribute-screen .radar-and-presets {
   margin-top: 6px;
-  gap: 10px;
+  gap: 8px;
 }
 
 .attribute-screen .radar-card {
-  height: 178px;
-  min-height: 178px;
-  padding: 7px 0;
+  height: 164px;
+  min-height: 164px;
+  padding: 5px 0;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: none;
 }
 
 .attribute-screen .radar-chart {
-  width: 176px;
-  max-width: 176px;
+  width: 164px;
+  max-width: 164px;
 }
 
 .attribute-screen .radar-label {
@@ -3919,9 +3913,9 @@ button {
 }
 
 .attribute-screen .preset-row {
-  height: 110px;
-  padding: 25px 11px 13px;
-  gap: 6px 8px;
+  height: 94px;
+  padding: 22px 11px 9px;
+  gap: 5px 8px;
   border-radius: 16px;
   overflow: visible;
 }
@@ -3943,7 +3937,7 @@ button {
 .attribute-screen .preset-row button {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 35px;
+  min-height: 32px;
   padding: 0 8px;
   border-radius: 10px;
   font-size: 14px;
@@ -3955,7 +3949,7 @@ button {
 
 .attribute-screen .preset-row .random-chip {
   flex: 0 0 79%;
-  min-height: 34px !important;
+  min-height: 31px !important;
   margin-top: 0;
   gap: 8px;
   color: #1264ee;
