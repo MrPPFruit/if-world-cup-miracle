@@ -1,0 +1,14 @@
+{
+  "change": "broaden-commentary-variant-pools",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "4325077de6245d547dbe07019f3f31c3f8981de28936df5e6597811a2f44beb8",
+  "files": [
+    { "path": "openspec/changes/broaden-commentary-variant-pools/proposal.md", "sha256": "63f7b473ec3b35df2a8a78cc99cf30590e9747d87f1266b9d4af4b976edfc1ae" },
+    { "path": "openspec/changes/broaden-commentary-variant-pools/design.md", "sha256": "a491035338bed674ef7f2a5c7a4c2da92b388f9b18b9307c2fcb398f304bd5d5" },
+    { "path": "openspec/changes/broaden-commentary-variant-pools/tasks.md", "sha256": "aa0b607f76a9ad1799f83364efc8cdb647c6e56876357263769f54664c1a62a6" },
+    { "path": "openspec/changes/broaden-commentary-variant-pools/specs/dynamic-commentary/spec.md", "sha256": "b0f3cd64a12b405a2deb0d2e2b0d7211dac6f0fbd5018441ea8182c401dc92de" }
+  ]
+}

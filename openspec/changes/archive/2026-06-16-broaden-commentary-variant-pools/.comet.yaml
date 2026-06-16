@@ -1,0 +1,15 @@
+workflow: full
+phase: archive
+build_mode: direct
+isolation: branch
+verify_mode: null
+design_doc: docs/superpowers/specs/2026-06-16-broaden-commentary-variant-pools-design.md
+plan: null
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-06-16-broaden-commentary-variant-pools-verify.md
+branch_status: handled
+verified_at: 2026-06-16
+archived: true
+handoff_context: openspec/changes/archive/2026-06-16-broaden-commentary-variant-pools/.comet/handoff/design-context.json
+handoff_hash: 4325077de6245d547dbe07019f3f31c3f8981de28936df5e6597811a2f44beb8
+direct_override: true

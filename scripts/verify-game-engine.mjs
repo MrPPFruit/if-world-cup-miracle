@@ -213,6 +213,11 @@ function getVisibleLineText(lines) {
   return lines.map((line) => line.parts.map((part) => part.text).join("")).join("\n");
 }
 
+function assertMinimumDiversity(label, outputs, minimumUnique) {
+  const unique = new Set(outputs.map(normalizeVisibleText));
+  assert.ok(unique.size >= minimumUnique, `${label} should have at least ${minimumUnique} unique outputs, got ${unique.size}`);
+}
+
 const fixedAttributes = { attack: 6, defense: 5, midfield: 6, stamina: 5, tactics: 4, luck: 7 };
 const fixedOpponent = getTeamByCode("gb-eng");
 const fixedMatch = { id: "knockout-QF", chinaGoals: 2, opponentGoals: 1 };
@@ -252,6 +257,41 @@ const fixedTransitionB = generateTransitionCommentary({
 assertTransitionSystemHighlights(fixedTransitionA, "fixed-transition-a");
 assertTransitionSystemHighlights(fixedTransitionB, "fixed-transition-b");
 assert.notEqual(getVisibleLineText(fixedTransitionA), getVisibleLineText(fixedTransitionB), "different commentary seeds should vary fixed group transition reports");
+
+const diversitySampleSize = 16;
+const fixedCommentarySamples = Array.from({ length: diversitySampleSize }, (_, index) =>
+  getVisibleLineText(generateMatchCommentary({
+    match: fixedMatch,
+    opponent: fixedOpponent,
+    attributes: fixedAttributes,
+    roundLabel: "8强",
+    rng: createRng(`verify-commentary-diversity-${index}`),
+  })),
+);
+assertMinimumDiversity("fixed match commentary samples", fixedCommentarySamples, 12);
+
+const fixedTransitionSamples = Array.from({ length: diversitySampleSize }, (_, index) => {
+  const lines = generateTransitionCommentary({
+    selectedTeam: getTeamByCode("jp"),
+    groupMatches: fixedTransitionMatches,
+    attributes: fixedAttributes,
+    rng: createRng(`verify-transition-diversity-${index}`),
+  });
+  assertTransitionSystemHighlights(lines, `fixed-transition-diversity-${index}`);
+  return getVisibleLineText(lines);
+});
+assertMinimumDiversity("fixed group transition samples", fixedTransitionSamples, 12);
+
+const fixedRunCopySamples = Array.from({ length: diversitySampleSize }, (_, index) => {
+  const run = simulateWorldCupRun({
+    attributes: ZERO_LUCK_CHAMPION_ATTRIBUTES,
+    selectedTeam: getTeamByCode("nl"),
+    seed: `verify-run-copy-diversity-${index}`,
+  });
+  assert.equal(run.result, "champion", `fixed run copy sample should keep champion route: ${index}`);
+  return JSON.stringify(run.copy);
+});
+assertMinimumDiversity("fixed run copy samples", fixedRunCopySamples, 12);
 
 assert.ok(getTeamByCode("ar").baseRating > getTeamByCode("jp").baseRating);
 assert.ok(getTeamByCode("jp").baseRating > getTeamByCode("ht").baseRating);
