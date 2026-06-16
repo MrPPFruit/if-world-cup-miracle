@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { COMPACT_COPY_LIMITS, GOAL_PLAYER_ROLES, PLAYER_LORE_LINES_BY_NAME } from "../src/game/commentary.js";
+import { COMPACT_COPY_LIMITS, GOAL_PLAYER_ROLES, PLAYER_LORE_LINES_BY_NAME, generateMatchCommentary } from "../src/game/commentary.js";
 import { createBracketSlotMap, getFirstMeetingMatchId, getTeamSlot, isLegalFinalPair } from "../src/game/bracket.js";
 import { ATTRIBUTE_KEYS, ZERO_LUCK_CHAMPION_ATTRIBUTES, championChance, expectedGoals, getChinaSkill, scoreMatch } from "../src/game/model.js";
 import { createRng } from "../src/game/random.js";
@@ -178,10 +178,29 @@ function assertNoDuplicateGeneratedCopy(run) {
   ].map(normalizeVisibleText).filter((text) => text.length >= 6);
   const seen = new Set();
   for (const fragment of fragments) {
+    assert.doesNotMatch(fragment, /\b(?:knockout|transition|run)-[A-Za-z0-9_-]+\b/, `${run.id} leaked internal id: ${fragment}`);
     assert.equal(seen.has(fragment), false, `${run.id} duplicate generated copy: ${fragment}`);
     seen.add(fragment);
   }
 }
+
+const highScoreFallbackLines = generateMatchCommentary({
+  match: { id: "knockout-SF", chinaGoals: 12, opponentGoals: 0 },
+  opponent: getTeamByCode("gb-eng"),
+  attributes: { attack: 10, defense: 4, midfield: 6, stamina: 6, tactics: 4, luck: 8 },
+  roundLabel: "半决赛",
+  rng: createRng("verify-high-score-goal-fallback"),
+});
+const highScoreFragments = collectGeneratedFragmentsFromLines(highScoreFallbackLines);
+assert.ok(highScoreFragments.length > 12, "high-score fallback sample should generate many narrative fragments");
+for (const fragment of highScoreFragments) {
+  assert.doesNotMatch(fragment, /\b(?:knockout|transition|run)-[A-Za-z0-9_-]+\b/, `high-score fallback leaked internal id: ${fragment}`);
+}
+assert.equal(
+  highScoreFragments.filter((fragment) => fragment.includes("改写比分，记分牌只好继续加班")).length,
+  0,
+  "old repetitive goal fallback should not appear",
+);
 
 assert.ok(getTeamByCode("ar").baseRating > getTeamByCode("jp").baseRating);
 assert.ok(getTeamByCode("jp").baseRating > getTeamByCode("ht").baseRating);

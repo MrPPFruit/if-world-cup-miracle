@@ -452,7 +452,11 @@ function pickUnique(rng, items, ledger, fallbackFactory = null) {
     if (!ledger?.has(candidate)) return ledger?.use(candidate) ?? candidate;
   }
   const fallback = fallbackFactory ? fallbackFactory() : items[0];
-  return ledger?.use(fallback) ?? fallback;
+  const fallbackCandidates = Array.isArray(fallback) ? fallback : [fallback];
+  for (const candidate of fallbackCandidates) {
+    if (!ledger?.has(candidate)) return ledger?.use(candidate) ?? candidate;
+  }
+  return ledger?.use(fallbackCandidates[0]) ?? fallbackCandidates[0];
 }
 
 function createRichTextLedger(lines = []) {
@@ -538,7 +542,7 @@ function makeGoalOrder(match, rng) {
 }
 
 function makeGoalLines({ match, opponent, rng, baseId, ledger }) {
-  const goalTimes = ["13’", "24’", "36’", "45+1’", "53’", "64’", "76’", "88’", "90+3’"];
+  const goalTimes = ["13’", "24’", "36’", "45+1’", "53’", "64’", "76’", "88’", "90+3’", "90+5’", "90+7’", "90+9’", "90+11’", "90+13’"];
   const chinaGoalTexts = [
     ["反击终于跑通，", "把球推进网窝。"],
     ["定位球砸进人堆，", "皮球像被宇宙推了一把。"],
@@ -550,12 +554,43 @@ function makeGoalLines({ match, opponent, rng, baseId, ledger }) {
     ["角球落点刚好，", "比分像被谁轻轻推了一下。"],
     ["补射赶在混乱前完成，", "门线这次没来得及装睡。"],
     ["反抢之后立刻起脚，", "对手后场还没读完题。"],
+    ["前插踩到最吵的位置，", "比分被硬生生拽起来。"],
+    ["禁区里抢出半个身位，", "皮球从人缝里找到出口。"],
+    ["横传扫到门前，", "这一脚把混乱翻译成进球。"],
+    ["门前第二反应很快，", "球网没来得及拒收。"],
+    ["倒三角传回禁区，", "射门把答案写得很大声。"],
+    ["后点包抄终于赶到，", "记分牌又被叫醒一次。"],
+    ["中路撞墙配合打穿，", "对手防线当场少看一页。"],
+    ["小角度硬是挤进去，", "球门像被开了一条暗门。"],
+    ["乱战里先伸出一脚，", "比分在草皮上突然翻身。"],
+    ["禁区弧顶抡出一脚，", "皮球贴着风钻进角落。"],
+    ["门将扑出第一下，", "第二点马上把悬念补进去。"],
+    ["边路低平球穿过去，", "门前这次没有浪费奇迹。"],
+    ["前场连续压迫奏效，", "对手出球被直接改成助攻。"],
+    ["反越位跑成了，", "单刀把心跳推到看台顶上。"],
+    ["定位球二次进攻续上，", "禁区里的算盘又响了一声。"],
   ];
   const opponentGoalTexts = [
     ["压上后抓住空当，", "现实服警报短暂响起。"],
     ["远射折线入网，", "门柱这次选择旁观。"],
     ["边路传中造成混乱，", "比分把心率往上拽了一格。"],
     ["前场逼抢得手，", "解说席开始翻安慰词。"],
+    ["禁区前找到空隙，", "皮球把场面重新拧紧。"],
+    ["后点突然杀出，", "中国队防线慢了半拍。"],
+    ["定位球落到危险区，", "比分被对面补上一笔。"],
+    ["反击一路推到门前，", "现实感又敲了一下门。"],
+    ["门前补射跟得很快，", "领先优势被迫重新计算。"],
+    ["中路直塞穿过防线，", "门将只能和球网对视。"],
+  ];
+  const fallbackGoalTexts = [
+    ({ sideName }) => `${sideName}又把门前混乱整理成进球，比分牌继续加班。`,
+    ({ sideName }) => `${sideName}这次没有讲铺垫，直接把球塞进网窝。`,
+    ({ sideName }) => `${sideName}在最拥挤的地方找到出口，看台声音又高一层。`,
+    ({ sideName }) => `${sideName}把一次半机会踢成整分，门线只好认账。`,
+    ({ sideName }) => `${sideName}抢到最后一下，皮球带着省略号滚进门里。`,
+    ({ sideName }) => `${sideName}把禁区里的乱流踩住，下一秒比分改写。`,
+    ({ sideName }) => `${sideName}这脚处理很硬，球网被迫接收新证据。`,
+    ({ sideName }) => `${sideName}在门前补上关键一笔，比赛温度继续上升。`,
   ];
   let chinaScore = 0;
   let opponentScore = 0;
@@ -575,7 +610,7 @@ function makeGoalLines({ match, opponent, rng, baseId, ledger }) {
         ? goalPool.map((item) => item.join(""))
         : [...getPlayerLoreCandidates(scorer, role), ...goalPool.map((item) => item.join(""))],
       ledger,
-      () => `${baseId}${isChina ? "中国队" : opponent.name}第${index + 1}次改写比分，记分牌只好继续加班。`,
+      () => fallbackGoalTexts.map((template) => template({ sideName: isChina ? "中国队" : opponent.name })),
     );
     const scoreText = `${chinaScore}:${opponentScore}`;
 
