@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { COMPACT_COPY_LIMITS, GOAL_PLAYER_ROLES, PLAYER_LORE_LINES_BY_NAME, generateMatchCommentary } from "../src/game/commentary.js";
+import { COMPACT_COPY_LIMITS, GOAL_PLAYER_ROLES, PLAYER_LORE_LINES_BY_NAME, generateMatchCommentary, generateTransitionCommentary } from "../src/game/commentary.js";
 import { createBracketSlotMap, getFirstMeetingMatchId, getTeamSlot, isLegalFinalPair } from "../src/game/bracket.js";
 import { ATTRIBUTE_KEYS, ZERO_LUCK_CHAMPION_ATTRIBUTES, championChance, expectedGoals, getChinaSkill, scoreMatch } from "../src/game/model.js";
 import { createRng } from "../src/game/random.js";
@@ -107,6 +107,7 @@ function assertRichLineParts(lines, label) {
 
 function assertMatchCommentary(run) {
   assertRichLineParts(run.transitionLines, `${run.id}:transition`);
+  assertTransitionSystemHighlights(run.transitionLines, `${run.id}:transition`);
   for (const round of run.knockoutRounds) {
     assertRichLineParts(round.commentary, `${run.id}:${round.key}`);
     const legalPlayerNames = new Set([
@@ -131,6 +132,12 @@ function assertMatchCommentary(run) {
       }
     }
   }
+}
+
+function assertTransitionSystemHighlights(lines, label) {
+  const systemParts = lines.flatMap((line) => (line.parts || []).filter((part) => part.kind === "system").map((part) => part.text));
+  assert.ok(systemParts.length >= 3, `${label} should include final whistle system tags`);
+  assert.deepEqual([...new Set(systemParts)], ["终场哨响"], `${label} should only system-highlight final whistle`);
 }
 
 function assertCopyBudgets(run) {
@@ -201,6 +208,50 @@ assert.equal(
   0,
   "old repetitive goal fallback should not appear",
 );
+
+function getVisibleLineText(lines) {
+  return lines.map((line) => line.parts.map((part) => part.text).join("")).join("\n");
+}
+
+const fixedAttributes = { attack: 6, defense: 5, midfield: 6, stamina: 5, tactics: 4, luck: 7 };
+const fixedOpponent = getTeamByCode("gb-eng");
+const fixedMatch = { id: "knockout-QF", chinaGoals: 2, opponentGoals: 1 };
+const fixedCommentaryA = generateMatchCommentary({
+  match: fixedMatch,
+  opponent: fixedOpponent,
+  attributes: fixedAttributes,
+  roundLabel: "8强",
+  rng: createRng("verify-commentary-entropy-a"),
+});
+const fixedCommentaryB = generateMatchCommentary({
+  match: fixedMatch,
+  opponent: fixedOpponent,
+  attributes: fixedAttributes,
+  roundLabel: "8强",
+  rng: createRng("verify-commentary-entropy-b"),
+});
+assert.notEqual(getVisibleLineText(fixedCommentaryA), getVisibleLineText(fixedCommentaryB), "different commentary seeds should vary fixed match reports");
+
+const fixedTransitionMatches = [
+  { opponent: getTeamByCode("nl"), chinaGoals: 1, opponentGoals: 1 },
+  { opponent: getTeamByCode("se"), chinaGoals: 2, opponentGoals: 1 },
+  { opponent: getTeamByCode("tn"), chinaGoals: 0, opponentGoals: 0 },
+];
+const fixedTransitionA = generateTransitionCommentary({
+  selectedTeam: getTeamByCode("jp"),
+  groupMatches: fixedTransitionMatches,
+  attributes: fixedAttributes,
+  rng: createRng("verify-transition-entropy-a"),
+});
+const fixedTransitionB = generateTransitionCommentary({
+  selectedTeam: getTeamByCode("jp"),
+  groupMatches: fixedTransitionMatches,
+  attributes: fixedAttributes,
+  rng: createRng("verify-transition-entropy-b"),
+});
+assertTransitionSystemHighlights(fixedTransitionA, "fixed-transition-a");
+assertTransitionSystemHighlights(fixedTransitionB, "fixed-transition-b");
+assert.notEqual(getVisibleLineText(fixedTransitionA), getVisibleLineText(fixedTransitionB), "different commentary seeds should vary fixed group transition reports");
 
 assert.ok(getTeamByCode("ar").baseRating > getTeamByCode("jp").baseRating);
 assert.ok(getTeamByCode("jp").baseRating > getTeamByCode("ht").baseRating);

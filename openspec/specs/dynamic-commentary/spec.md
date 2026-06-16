@@ -72,7 +72,7 @@ The system SHALL keep generated text within budgets for compact UI surfaces.
 - **THEN** it MAY use longer commentary templates while preserving line readability in the 400x865 mobile viewport
 
 ### Requirement: Single-run visible copy uniqueness
-The system SHALL avoid repeating generated visible commentary or short-copy strings within a single game run, and generated visible copy SHALL NOT expose internal ids.
+The system SHALL avoid repeating generated visible commentary or short-copy strings within a single game run, generated visible copy SHALL NOT expose internal ids, and different run seeds SHOULD produce varied generated commentary even when match facts are similar.
 
 #### Scenario: One run has no duplicate generated visible copy
 - **WHEN** a game run generates transition lines, knockout commentary, group result copy, advancement hints, path notes, and settlement copy
@@ -85,6 +85,15 @@ The system SHALL avoid repeating generated visible commentary or short-copy stri
 #### Scenario: Internal ids stay hidden
 - **WHEN** generated visible commentary falls back after normal copy pools are exhausted
 - **THEN** visible text MUST NOT contain internal identifiers such as knockout round ids, match ids, or run ids
+
+#### Scenario: Different run seeds vary similar match commentary
+- **WHEN** two generated reports share the same match facts but use different run commentary seeds
+- **THEN** visible commentary SHOULD differ while still respecting score, team, and player-role facts
+
+#### Scenario: Group transition limits system highlights
+- **WHEN** group-stage transition commentary is generated
+- **THEN** purple system-highlight text MUST appear only on final whistle score rows
+- **AND** the final whistle system text MUST read `终场哨响`
 
 ### Requirement: Group-stage per-match detail copy
 The system SHALL generate compact group-stage detail copy for each China group match.

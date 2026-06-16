@@ -666,8 +666,8 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
         ? ["哨响  点球点上也能种出奇迹", "哨响  十二码也认了这条线", "哨响  点球点开出一朵怪花"]
         : ["哨响  这一关硬是过去了", "哨响  门缝里挤出下一轮", "哨响  梦又多续了一集", "哨响  记分牌批准通行", "哨响  胜利从边线挤进来", "哨响  下一页剧本被硬翻开"]
       : isDraw
-        ? ["哨响  算分器还活着", "哨响  积分题还没交卷", "哨响  两边各拿一半悬念"]
-        : ["哨响  这条宇宙线开始漏风", "哨响  剧本写到这里先停笔", "哨响  现实把门轻轻带上"],
+        ? ["哨响  算分器还活着", "哨响  积分题还没交卷", "哨响  两边各拿一半悬念", "哨响  悬念被折好放回口袋", "哨响  这题还要看下一页"]
+        : ["哨响  这条宇宙线开始漏风", "哨响  剧本写到这里先停笔", "哨响  现实把门轻轻带上", "哨响  这集先被比分按住", "哨响  风向没有继续帮忙"],
     copyLedger,
   );
   const baseId = match.id || roundLabel;
@@ -679,6 +679,10 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
     "比赛起步，中国队没有急着摊牌，",
     "前十分钟，中国队先把阵脚钉住，",
     "开场阶段，中国队把呼吸放平，",
+    "前几脚传递很谨慎，",
+    "比赛刚热起来，中国队先把风险收住，",
+    "开场没有抢镜头，",
+    "第一段节奏偏慢，",
   ];
   const startOpponentCopies = [
     "把阵型往前压。",
@@ -695,6 +699,10 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
     "把节奏从火里捞出来，",
     "用一次处理稳住场面，",
     "把麻烦从禁区边上拎走，",
+    "把身位卡得很死，",
+    "在混乱里先伸出脚，",
+    "把第二落点抢回来，",
+    "用一次回追把火苗按住，",
   ];
   const playerOutcomeCopies = [
     "节奏被迫降下来。",
@@ -703,6 +711,10 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
     "禁区门口终于安静一点。",
     "比赛温度被按低半格。",
     "这一口险气被暂时吞回去。",
+    "对手的推进被迫重新组织。",
+    "门前那阵风先停了半秒。",
+    "这波压迫没有烧到门前。",
+    "看台的声浪被压回去一点。",
   ];
   const lateWinCopies = [
     "把最后几分钟踢成防灾演练，",
@@ -711,6 +723,10 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
     "把每次传中都拆成零件，",
     "把禁区守成一页密密麻麻的批注，",
     "把最后的风声挡在门外，",
+    "把每个落点都当成期末题，",
+    "把门前空间塞得只剩一条缝，",
+    "把最后一段踢成集体屏息，",
+    "把对手的传中一脚脚清出去，",
   ];
   const lateLoseCopies = [
     "还在往前压，",
@@ -719,6 +735,10 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
     "把最后一点力气推上去，",
     "把希望往前场又搬了一步，",
     "继续向禁区里递问题，",
+    "把边路又冲了一遍，",
+    "把最后的体能换成传中，",
+    "继续在禁区外敲门，",
+    "把球权往前场硬搬，",
   ];
   const opponentLateWinCopies = [
     "连续传中都被挡出。",
@@ -801,6 +821,10 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
           "远射高出横梁，天空短暂接管比赛。",
           "小角度打门被挡，球迷把叹气咽回去。",
           "反击最后一传偏深，机会从鞋尖滑走。",
+          "后点包抄差了一步，替补席把欢呼先收回去。",
+          "禁区前沿再起一脚，皮球贴着门柱外侧溜走。",
+          "传中落点很好，可惜最后一下没有吃正。",
+          "反越位差点跑成，边裁的旗子先替现实发言。",
         ]),
       ]),
     );
@@ -872,130 +896,224 @@ export function generateMatchCommentary({ match, opponent, attributes, roundLabe
   return lines;
 }
 
-export function generateTransitionCommentary({ selectedTeam, groupMatches, attributes }) {
-  const opponents = groupMatches.map((match) => match.opponent);
-  const dominant = getDominantAttribute(attributes);
-  const dominantText = {
-    attack: "锋线火力",
-    defense: "铁桶防线",
-    midfield: "中场脑子",
-    stamina: "体能韧性",
-    tactics: "战术整活",
-  }[dominant] || "中场脑子";
-  const luckTone = getLuckTone(attributes);
-  const luckCopy = {
-    none: "没有幸运外包  全靠腿和心跳",
-    mild: "幸运偶尔探头  像迟到的场务",
-    high: "幸运开始值班  门柱都在看工牌",
-    absurd: "幸运穿西装入场  宇宙线开始端水",
-  }[luckTone];
-  const rng = {
+function getDefaultCommentaryRng() {
+  return {
     nextIndex: 0,
     next() {
       this.nextIndex += 1;
       return ((this.nextIndex * 0.61803398875) % 1);
     },
   };
+}
+
+function makeTransitionMatchRead(match, index, luckTone) {
+  const shape = getGroupMatchShape(match);
+  const winReads = [
+    "这场不是童话，是硬把门缝推开了一点。",
+    "三分来得不响，但积分榜听见了。",
+    "对手没少施压，中国队这次把答案写在比分上。",
+    "赢球不一定优雅，但足够把梦往前推一格。",
+  ];
+  const drawReads = [
+    "一分看着不胖，关键时刻却很能占地方。",
+    "场面摇摇晃晃，积分却还肯留在桌上。",
+    "双方互相试探到最后，悬念没有被谁拿走。",
+    "平局像一张皱纸，摊开以后还能算题。",
+  ];
+  const lossReads = [
+    "输球不体面也不致命，关键是门还没彻底关上。",
+    "现实先敲了一下门，但剧本还没被收走。",
+    "这场被压得难受，后面的算盘反而更响。",
+    "比分吃亏，积分榜却还留了一条窄缝。",
+  ];
+  const cleanReads = [
+    "零封让替补席终于敢正常呼吸。",
+    "门前风声很大，最后都被关在外面。",
+    "这一场守得像给球门上了两道锁。",
+  ];
+  const absurdReads = [
+    "有些落点不像训练内容，更像宇宙临时递来的纸条。",
+    "几次弹跳都不讲常识，现场只能先尊重比分。",
+    "门柱和草皮都像偷偷看过剧本。",
+  ];
+  if (luckTone === "absurd" && index > 0) return absurdReads;
+  if (shape === "cleanWin") return cleanReads;
+  if (match.chinaGoals > match.opponentGoals) return winReads;
+  if (match.chinaGoals === match.opponentGoals) return drawReads;
+  return lossReads;
+}
+
+export function generateTransitionCommentary({ selectedTeam, groupMatches, attributes, rng = null }) {
+  const opponents = groupMatches.map((match) => match.opponent);
+  const dominant = getDominantAttribute(attributes);
+  const transitionRng = rng || getDefaultCommentaryRng();
+  const luckTone = getLuckTone(attributes);
   const ledger = createCopyLedger();
-  const kickoffCopies = [
-    "，解说席先把计算器摆正。",
-    "，看台开始复习排列组合。",
-    "，替补席把心跳调成省电模式。",
-    "，积分榜在旁边假装冷静。",
-    "，赛程表像刚收到临时通知。",
-    "，球迷先把呼吸存在草稿箱。",
+  const attributeSetupCopies = {
+    attack: ["前场胆子比赛程表还大，", "第一脚推进就带着点不讲理，"],
+    defense: ["后场先把门栓摸了一遍，", "防线开场就把声音压低，"],
+    midfield: ["中场没有急着表演，先把球权攥稳，", "节奏从中圈慢慢拧紧，"],
+    stamina: ["跑动量先垫在草皮下面，", "开场不抢戏，体能账本先记着，"],
+    tactics: ["战术板像临时加了批注，", "站位一变，连解说席都多看一眼，"],
+  };
+  const setupCopies = [
+    "坐进这个小组，第一件事是先把比分牌看清。",
+    "站到草皮上，替补席已经开始小声算分。",
+    "把这条平行宇宙先踢成现实问题。",
+    `${pick(transitionRng, attributeSetupCopies[dominant] || attributeSetupCopies.midfield)}接管小组后的第一口气没有白喘。`,
   ];
-  const shapeCopies = [
-    "塞进比赛节奏里。",
-    "踢成了临场说明书。",
-    "拧成一把不太讲理的钥匙。",
-    "铺成一张小型战术地图。",
-    "写进这场的临时注脚。",
-    "搬到中圈附近开现场会。",
+  const luckSetupCopies = {
+    none: ["没有外包奇迹，三场都得靠脚下自己签字。", "好运没有提前到场，场面只能一脚一脚磨。"],
+    mild: ["好运偶尔探头，但不负责全场售后。", "有几次风向帮忙，更多时候还是靠回追和补位。"],
+    high: ["门柱偶尔像熟人，但中国队也得先把球送到门前。", "运气开始上班，不过工牌查得很严。"],
+    absurd: ["有些弹跳像临时改卷，但比分还得自己踢出来。", "宇宙线偶尔递纸条，教练席只敢装作没看见。"],
+  };
+  const kickoffCopiesByIndex = [
+    [
+      "第一场开得很紧，双方都像在试探这条宇宙线的承重，",
+      "小组赛第一脚落地，场面没有热身，直接开始问难题，",
+      "揭幕这场节奏偏硬，防线和心跳都得先摆正，",
+    ],
+    [
+      "第二场一开球，积分压力就坐到了替补席旁边，",
+      "中盘战不好看也不好躲，场上每一脚都像在算题，",
+      "第二轮没有太多铺垫，谁先犯错谁就先被比分记名，",
+    ],
+    [
+      "最后一轮开球前，所有小分都像站在边线等判决，",
+      "第三场不是单场比赛，更像一张会移动的数学卷子，",
+      "收官战一开始，看台已经把别场比分也一起塞进耳朵，",
+    ],
   ];
-  const starPressureCopies = [
-    "把这段压力先存档。",
-    "把镜头里的风声压低。",
-    "把危险暂时塞回边线。",
-    "把对方节奏按进暂停键。",
-    "把最后一页剧本攥住。",
-    "把这口气先咽进队徽里。",
+  const chinaResponseCopies = [
+    "这段没有急着冲，先把危险从中路往外赶。",
+    "把节奏压低半格，场面终于不像刚才那么晃。",
+    "连续几次回收站住，禁区前沿少了一点火星。",
+    "把球权抢回来那一下，替补席总算敢抬头。",
+    "这一段踢得不花，但每脚都在给积分续命。",
+    "没有把比赛踢漂亮，先把它踢得能活。",
+    "被压住几分钟后，靠一次反抢把场面撕开口子。",
+    "把边路推进做出来，比分牌旁边的空气突然变薄。",
   ];
-  const starIntroCopies = [
-    "被镜头点名，",
-    "刚一拿球，",
-    "把节奏抬起来，",
-    "在边线附近亮相，",
-    "让看台突然起声，",
-    "把防线看得一紧，",
+  const tableCopies = [
+    "这一下让积分榜开始皱眉，旁边两队也被迫重新心算。",
+    "场面还没完全顺，但这段走势已经够让小组排名变脸。",
+    "这几分钟不算宏大，却把出线概率往前推了一格。",
+    "别场消息传来之前，中国队先把自己的题目写完一半。",
+    "比分一动，计算器立刻从口袋里探头。",
+    "这段拉扯没有赢家脸，但积分榜开始给中国队留缝。",
   ];
-  const swingIntroCopies = [
-    "制造险情，",
-    "把禁区搅热，",
-    "压出一次混乱，",
-    "送出一脚威胁，",
-    "让门前风向一变，",
-    "把中国队心率拎高，",
+  const opponentBeatCopies = [
+    "刚一拿球，看台声音先往上抬。",
+    "在边线附近停住球，防线立刻缩了一下。",
+    "把节奏往前带，禁区外的空气开始发紧。",
+    "突然加快处理，门前那几秒变得很长。",
+    "一脚转移把场面拉开，后腰位置赶紧补位。",
+    "把球送到危险区前，替补席的聊天声直接停了。",
   ];
-  const swingCopies = [
-    "短暂沉默，宇宙线继续加载。",
-    "低头画线，草皮先别说话。",
-    "看了又看，比分牌假装路过。",
-    "举手示意，心率图开始写草书。",
-    "把哨子含住，现场进入省略号。",
-    "翻完规则，命运暂时没有签收。",
+  const opponentBeatCopiesByRole = {
+    save: [
+      "提前站好位置，射门角度一下变窄。",
+      "把门前落点看得很死，进攻只能再找办法。",
+      "横移封住近角，禁区里的声音先低了一点。",
+      "高球摘得很稳，门前混乱被他直接收走。",
+    ],
+    block: [
+      "卡住传球线路，边路推进被迫绕远。",
+      "贴住身位不松，禁区边上立刻变挤。",
+      "提前补到空当，传中线路被挡回去。",
+      "把第一点顶出来，门前危机先散一半。",
+    ],
+    finish: [
+      "刚一拿球，看台声音先往上抬。",
+      "抢到身前位置，防线立刻往后收。",
+      "在禁区口抬脚，门前那几秒变得很长。",
+      "突然前插，替补席的聊天声直接停了。",
+    ],
+    pace: [
+      "边线一提速，防线立刻缩了一下。",
+      "把节奏往前带，禁区外的空气开始发紧。",
+      "外线甩开半步，后腰位置赶紧补位。",
+      "突然加速处理，边路空间被拉得很薄。",
+    ],
+    control: [
+      "一脚转移把场面拉开，防线被迫横着补位。",
+      "把球停在脚下，比赛节奏跟着慢了半拍。",
+      "连续两脚分球，防线被迫左右看表。",
+      "把节奏往前带，禁区外的空气开始发紧。",
+    ],
+    setPiece: [
+      "站到定位球前，禁区里立刻开始互相点名。",
+      "把球摆正，人墙先把呼吸收紧。",
+      "助跑距离不长，门前每个人都往后看了一眼。",
+      "一脚开进危险区，门前只能先把落点顶出去。",
+    ],
+  };
+  const finalMoodCopies = [
+    "这比分不算宽敞，但足够让悬念继续呼吸。",
+    "数字落下以后，看台先沉默半秒再开始算表。",
+    "比分牌停住，积分题却没有立刻交卷。",
+    "这一行数字很短，后果却拖得很长。",
+    "哨声把场面收住，计算器还在继续发热。",
+    "终局数字亮起，所有人都先看向积分榜。",
   ];
 
   return [
     richLine("transition-replace", [
       part(`${selectedTeam.name}队`, PART_KIND.TEAM),
-      part("名单突然闪烁，"),
+      part("名单闪烁，"),
       part("中国队", PART_KIND.TEAM),
-      part("带着"),
-      part(dominantText, PART_KIND.SYSTEM),
-      part("接管了这个小组。"),
+      part(pickUnique(transitionRng, setupCopies, ledger)),
     ]),
     richLine("transition-equipment", [
       part("03’", PART_KIND.TIME),
-      part("更衣室", PART_KIND.SYSTEM),
-      part("门牌重新贴好，队务说这锅先别问是谁背。"),
+      part(pickUnique(transitionRng, [
+        "更衣室门牌重新贴好，队务说先别追问流程合不合理。",
+        "替补席把旧名单折起来，新的小组表被摊在战术板旁边。",
+        "解说席收到新赛程，第一反应不是惊讶，是找计算器。",
+        "球员通道安静了两秒，随后所有人都开始假装这很正常。",
+      ], ledger)),
     ]),
     richLine("transition-luck", [
       part("07’", PART_KIND.TIME),
-      part("幸运值", PART_KIND.SYSTEM),
-      part(luckCopy),
-      part("。"),
+      part(pickUnique(transitionRng, luckSetupCopies[luckTone], ledger)),
     ]),
     ...groupMatches.flatMap((match, index) => {
       const opponent = opponents[index];
       const preferredRoles = index === 0 ? ["finish", "pace"] : index === 1 ? ["control", "setPiece"] : ["save", "block"];
       const star = pickPlayerByRole(
-        { next: () => ((index + 1) * 0.271828) % 1 },
+        transitionRng,
         opponent,
         preferredRoles,
       );
-      const starRole = pickRoleForPlayer(rng, star, preferredRoles);
+      const starRole = pickRoleForPlayer(transitionRng, star, preferredRoles);
+      const matchReadPool = makeTransitionMatchRead(match, index, luckTone);
       return [
         richLine(`transition-group-${index}-kickoff`, [
           part(`${12 + index * 19}’`, PART_KIND.TIME),
-          part("中国队", PART_KIND.TEAM),
-          part("对上"),
+          part(pickUnique(transitionRng, kickoffCopiesByIndex[index] || kickoffCopiesByIndex[0], ledger)),
+          part("对手是"),
           part(opponent.name, PART_KIND.TEAM),
-          uniquePart(ledger, rng, kickoffCopies),
+          part("。"),
         ]),
         richLine(`transition-group-${index}-shape`, [
           part(`${22 + index * 17}’`, PART_KIND.TIME),
           part("中国队", PART_KIND.TEAM),
-          part("把"),
-          part(dominantText, PART_KIND.SYSTEM),
-          uniquePart(ledger, rng, shapeCopies),
+          part(pickUnique(transitionRng, chinaResponseCopies, ledger)),
         ]),
         richLine(`transition-group-${index}-star`, [
-          part(`${28 + index * 13}’`, PART_KIND.TIME),
+          part(`${28 + index * 16}’`, PART_KIND.TIME),
           part(star.name, PART_KIND.PLAYER),
-          part(pickPlayerEventText(rng, star, starRole, starIntroCopies, ledger)),
+          part(pickPlayerEventText(transitionRng, star, starRole, opponentBeatCopiesByRole[starRole] || opponentBeatCopies, ledger)),
           part("中国队", PART_KIND.TEAM),
-          uniquePart(ledger, rng, starPressureCopies),
+          part(pickUnique(transitionRng, [
+            "把防线往后收了一步。",
+            "只能先把门前人手堆满。",
+            "赶紧把边路空当补上。",
+            "这次没有追漂亮，先追安全。",
+            "把危险球从脚边清出去。",
+            "用一次回追把场面按住。",
+          ], ledger)),
         ], {
           playerEvent: {
             name: star.name,
@@ -1005,29 +1123,37 @@ export function generateTransitionCommentary({ selectedTeam, groupMatches, attri
         }),
         richLine(`transition-group-${index}-swing`, [
           part(`${39 + index * 13}’`, PART_KIND.TIME),
-          part(opponent.name, PART_KIND.TEAM),
-          uniquePart(ledger, rng, swingIntroCopies),
-          part("VAR", PART_KIND.SYSTEM),
-          uniquePart(ledger, rng, swingCopies),
+          part(pickUnique(transitionRng, matchReadPool, ledger)),
+          part(" "),
+          part(pickUnique(transitionRng, tableCopies, ledger)),
         ]),
         richLine(`transition-group-${index}-score`, [
-          part("终场", PART_KIND.SYSTEM),
+          part("终场哨响", PART_KIND.SYSTEM),
           part("："),
           part(`中国队 ${makeScoreText(match)} ${makeCompactScoreTeamName(opponent.name)}`, PART_KIND.SCORE),
+          part(pickUnique(transitionRng, finalMoodCopies, ledger)),
         ]),
       ];
     }),
     richLine("transition-table", [
-      part("积分榜", PART_KIND.SYSTEM),
-      part("刷新，"),
+      part("积分榜刷新，"),
       part("中国队", PART_KIND.TEAM),
-      part("还挂在线上，数学老师暂时没有下班。"),
+      part(pickUnique(transitionRng, [
+        "还挂在线上，数学老师暂时没有下班。",
+        "没有被踢出题面，下一页剧本还亮着。",
+        "把出线两个字留在屏幕边缘，没有彻底滑走。",
+        "还在那条细线上站着，风一吹都像加时。",
+      ], ledger)),
     ]),
     richLine("transition-group-summary", [
-      part("小组赛", PART_KIND.SYSTEM),
-      part("结算完成，"),
+      part("小组赛结算完成，"),
       part("中国队", PART_KIND.TEAM),
-      part("还没有被宇宙线删除。"),
+      part(pickUnique(transitionRng, [
+        "还没有被宇宙线删除。",
+        "把最窄的一条路踢成了下一关。",
+        "没把场面踢明白，但把自己踢进了故事里。",
+        "从一堆算式里挤出了继续做梦的资格。",
+      ], ledger)),
     ]),
   ];
 }

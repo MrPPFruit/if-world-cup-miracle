@@ -1,0 +1,15 @@
+workflow: full
+phase: archive
+build_mode: direct
+isolation: branch
+verify_mode: null
+design_doc: docs/superpowers/specs/2026-06-16-vary-commentary-across-runs-design.md
+plan: null
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-06-16-vary-commentary-across-runs-verify.md
+branch_status: handled
+verified_at: 2026-06-16
+archived: true
+handoff_context: openspec/changes/archive/2026-06-16-vary-commentary-across-runs/.comet/handoff/design-context.json
+handoff_hash: 7e7a4eff26f19bce306da3ca66aa01befda3c9b380b318d7a95eace7bc3a6bd2
+direct_override: true
