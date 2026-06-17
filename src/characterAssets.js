@@ -1,4 +1,4 @@
-const CHARACTER_ASSET_ROOT = "/assets/characters";
+const CHARACTER_ASSET_ROOT = "/assets/characters-webp";
 
 const COUNTRY_CHARACTER_NAMES = {
   mx: "墨西哥",
@@ -59,23 +59,23 @@ export const COUNTRY_DEFEATED_CHARACTER_CODES = Object.keys(COUNTRY_CHARACTER_NA
 
 export const CHINA_DEFEATED_CHARACTER_VARIANTS = {
   "pack-home": {
-    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-01.png`,
+    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-01.webp`,
     label: "打包回家",
   },
   "net-trap": {
-    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-02.png`,
+    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-02.webp`,
     label: "球网裹住",
   },
   "tactics-collapse": {
-    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-03.png`,
+    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-03.webp`,
     label: "战术崩盘",
   },
   "var-frozen": {
-    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-04.png`,
+    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-04.webp`,
     label: "VAR 石化",
   },
   "luggage-chase": {
-    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-05.png`,
+    src: `${CHARACTER_ASSET_ROOT}/pending/cn-defeated-05.webp`,
     label: "追行李车",
   },
 };
@@ -99,9 +99,9 @@ function normalizeCode(code) {
 
 function getCountryCharacterSrc(code) {
   if (code === "ar") {
-    return `${CHARACTER_ASSET_ROOT}/argentina-defeated-10.png`;
+    return `${CHARACTER_ASSET_ROOT}/argentina-defeated-10.webp`;
   }
-  return `${CHARACTER_ASSET_ROOT}/pending/${code}-defeated.png`;
+  return `${CHARACTER_ASSET_ROOT}/pending/${code}-defeated.webp`;
 }
 
 export function getCountryDefeatedCharacterAsset(teamCode, teamName) {

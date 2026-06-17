@@ -31,7 +31,7 @@ const TRANSITION_SETTLE_MS = 3000;
 const TRANSITION_LINE_INTERVAL_MS = 1700;
 const TRANSITION_FAST_LINE_INTERVAL_MS = 500;
 const KNOCKOUT_REPORT_LINE_INTERVAL_MS = 700;
-const BGM_SRC = "/assets/audio/brazil-football-carnival-samba.mp3";
+const BGM_SRC = "/assets/audio/brazil-football-carnival-samba-96k.mp3";
 const FINAL_WHISTLE_SRC = "/assets/audio/referee-whistle-final.mp3";
 const BGM_VOLUME = 0.18;
 const BGM_DUCKED_VOLUME = 0.06;
@@ -95,6 +95,21 @@ const teamName = (text) => transitionPart(text, "team");
 const playerName = (text) => transitionPart(text, "player");
 const systemTag = (text) => transitionPart(text, "system");
 const score = (text) => transitionPart(text, "score");
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getTransitionFeedDensity(feedHeight) {
+  const fallbackHeight = typeof window === "undefined"
+    ? 514
+    : Math.min(620, Math.max(430, (window.visualViewport?.height || window.innerHeight || 780) - 300));
+  const measuredHeight = Number.isFinite(feedHeight) && feedHeight > 0 ? feedHeight : fallbackHeight;
+  const queueHeight = Math.max(180, measuredHeight - 150);
+  const maxVisible = clampNumber(Math.floor(queueHeight / 48), 5, 10);
+
+  return { maxVisible };
+}
 
 function renderRichParts(line) {
   const nodes = [];
@@ -523,6 +538,37 @@ function PageShell({ children, className = "" }) {
   return <section className={cx("screen-content", className)}>{children}</section>;
 }
 
+function useVisualViewportCssVars() {
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const root = document.documentElement;
+    const syncViewport = () => {
+      const viewport = window.visualViewport;
+      const viewportHeight = Math.round(viewport?.height || window.innerHeight);
+      const viewportWidth = Math.round(viewport?.width || window.innerWidth);
+      root.style.setProperty("--app-viewport-height", `${viewportHeight}px`);
+      root.style.setProperty("--app-viewport-width", `${viewportWidth}px`);
+      root.classList.toggle("viewport-very-tight", viewportHeight <= 700);
+      root.classList.toggle("viewport-tight", viewportHeight <= 760);
+      root.classList.toggle("viewport-short", viewportHeight > 760 && viewportHeight <= 800);
+      root.classList.toggle("viewport-tall", viewportHeight >= 900);
+    };
+
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    window.addEventListener("orientationchange", syncViewport);
+    window.visualViewport?.addEventListener("resize", syncViewport);
+    window.visualViewport?.addEventListener("scroll", syncViewport);
+
+    return () => {
+      window.removeEventListener("resize", syncViewport);
+      window.removeEventListener("orientationchange", syncViewport);
+      window.visualViewport?.removeEventListener("resize", syncViewport);
+      window.visualViewport?.removeEventListener("scroll", syncViewport);
+    };
+  }, []);
+}
+
 function MusicToggleIcon({ musicOn, size = 18 }) {
   return <Music size={size} />;
 }
@@ -577,13 +623,13 @@ function useGameAudio(musicOn) {
     if (!bgmRef.current) {
       const bgm = new Audio(BGM_SRC);
       bgm.loop = true;
-      bgm.preload = "auto";
+      bgm.preload = "none";
       bgm.volume = BGM_VOLUME;
       bgmRef.current = bgm;
     }
     if (!whistleRef.current) {
       const whistle = new Audio(FINAL_WHISTLE_SRC);
-      whistle.preload = "auto";
+      whistle.preload = "none";
       whistle.volume = WHISTLE_VOLUME;
       whistleRef.current = whistle;
     }
@@ -608,19 +654,27 @@ function useGameAudio(musicOn) {
   }, [ensureAudio]);
 
   useEffect(() => {
+    if (!musicOn) {
+      if (duckTimerRef.current) {
+        window.clearTimeout(duckTimerRef.current);
+        duckTimerRef.current = null;
+      }
+      whistleRef.current?.pause();
+      if (whistleRef.current) whistleRef.current.currentTime = 0;
+      if (!bgmRef.current) return undefined;
+      fadeBgmTo(0, 180);
+      const timer = window.setTimeout(() => {
+        bgmRef.current?.pause();
+      }, 200);
+      return () => window.clearTimeout(timer);
+    }
+
     const audio = ensureAudio();
     if (!audio?.bgm) return;
-    if (musicOn) {
-      audio.bgm.volume = Math.min(audio.bgm.volume || BGM_VOLUME, BGM_VOLUME);
-      audio.bgm.play().catch(() => {});
-      fadeBgmTo(BGM_VOLUME, 260);
-      return;
-    }
-    fadeBgmTo(0, 180);
-    const timer = window.setTimeout(() => {
-      bgmRef.current?.pause();
-    }, 200);
-    return () => window.clearTimeout(timer);
+    audio.bgm.volume = Math.min(audio.bgm.volume || BGM_VOLUME, BGM_VOLUME);
+    audio.bgm.play().catch(() => {});
+    fadeBgmTo(BGM_VOLUME, 260);
+    return undefined;
   }, [ensureAudio, fadeBgmTo, musicOn]);
 
   useEffect(() => {
@@ -638,6 +692,7 @@ function useGameAudio(musicOn) {
   }, [ensureAudio, musicOn]);
 
   const playFinalWhistle = useCallback((key) => {
+    if (!musicOn) return;
     if (lastWhistleKeyRef.current === key) return;
     lastWhistleKeyRef.current = key;
     const audio = ensureAudio();
@@ -728,7 +783,7 @@ function HomeScreen({ onStart, musicOn, onMusicToggle }) {
   return (
     <PageShell className="home-screen">
       <div className="home-hero">
-        <img src="/home-reference.png" alt="国足 IF：美加墨奇迹首页" />
+        <img src="/home-reference.webp" alt="国足 IF：美加墨奇迹首页" />
       </div>
       <button
         className={cx("home-hotspot", "music-hotspot", "music-toggle-button", !musicOn && "is-muted")}
@@ -871,6 +926,7 @@ function ReplacementScreen({ selected, setSelected, onNext, onBack }) {
 }
 
 function TransitionScreen({ selectedTeam, gameRun, onDone, musicOn, onMusicToggle }) {
+  const [feedDensity, setFeedDensity] = useState(() => getTransitionFeedDensity());
   const [visibleCount, setVisibleCount] = useState(1);
   const [isAccelerated, setIsAccelerated] = useState(false);
   const feedRef = useRef(null);
@@ -879,8 +935,8 @@ function TransitionScreen({ selectedTeam, gameRun, onDone, musicOn, onMusicToggl
   const transitionLines = useMemo(() => gameRun?.transitionLines || getTransitionLines(selectedTeam), [gameRun, selectedTeam]);
   const revealTarget = transitionLines.length;
   const displayLines = useMemo(
-    () => transitionLines.slice(0, visibleCount).slice(-10).reverse(),
-    [transitionLines, visibleCount],
+    () => transitionLines.slice(0, visibleCount).slice(-feedDensity.maxVisible).reverse(),
+    [feedDensity.maxVisible, transitionLines, visibleCount],
   );
 
   const clearTransitionTimers = useCallback(() => {
@@ -927,7 +983,33 @@ function TransitionScreen({ selectedTeam, gameRun, onDone, musicOn, onMusicToggl
     setIsAccelerated(false);
     startRevealLoop(TRANSITION_LINE_INTERVAL_MS);
     return clearTransitionTimers;
-  }, [clearTransitionTimers, startRevealLoop]);
+  }, [clearTransitionTimers, revealTarget, startRevealLoop]);
+
+  useLayoutEffect(() => {
+    const updateDensity = () => {
+      const nextDensity = getTransitionFeedDensity(feedRef.current?.getBoundingClientRect().height);
+      setFeedDensity((currentDensity) => (
+        currentDensity.maxVisible === nextDensity.maxVisible
+          ? currentDensity
+          : nextDensity
+      ));
+    };
+
+    updateDensity();
+
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateDensity) : null;
+    if (resizeObserver && feedRef.current) {
+      resizeObserver.observe(feedRef.current);
+    }
+    window.visualViewport?.addEventListener("resize", updateDensity);
+    window.addEventListener("resize", updateDensity);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.visualViewport?.removeEventListener("resize", updateDensity);
+      window.removeEventListener("resize", updateDensity);
+    };
+  }, [revealTarget]);
 
   const handleAccelerate = useCallback(() => {
     if (isAccelerated || visibleCount >= revealTarget) return;
@@ -1201,6 +1283,12 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack, m
   const visibleReportCountForRound = reportRoundIndex === roundIndex ? visibleReportCount : 1;
   const reportComplete = visibleReportCountForRound >= round.commentary.length;
   const visibleReportLines = round.commentary.slice(0, visibleReportCountForRound);
+  const displayedReportLines = useMemo(
+    () => visibleReportLines.slice(-12).reverse(),
+    [visibleReportLines],
+  );
+  const newestReportLine = visibleReportLines[visibleReportLines.length - 1];
+  const finalReportLine = round.commentary[round.commentary.length - 1];
   const displayedScore = reportComplete ? round.score : getVisibleMatchScore(round, visibleReportLines);
   const defeatedAsset = getCountryDefeatedCharacterAsset(round.opponent.code, round.opponent.name);
   const chinaVictoryAsset =
@@ -1212,7 +1300,7 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack, m
   useEffect(() => {
     let nextCount = 1;
     setReportRoundIndex(roundIndex);
-    setVisibleReportCount(1);
+    setVisibleReportCount(nextCount);
     const timer = window.setInterval(() => {
       nextCount += 1;
       setVisibleReportCount(Math.min(nextCount, round.commentary.length));
@@ -1223,12 +1311,6 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack, m
 
     return () => window.clearInterval(timer);
   }, [roundIndex, round.commentary.length]);
-
-  useEffect(() => {
-    const scroller = reportRef.current?.querySelector(".commentary-scroll");
-    if (!scroller) return;
-    scroller.scrollTop = scroller.scrollHeight;
-  }, [visibleReportCountForRound, roundIndex]);
 
   useEffect(() => {
     if (!reportComplete) return;
@@ -1290,13 +1372,13 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack, m
       <section className="data-panel commentary-panel" ref={reportRef} aria-live="polite">
         <header><span></span>本场战报<i></i></header>
         <div className="commentary-scroll">
-          {visibleReportLines.map((line, index) => {
+          {displayedReportLines.map((line) => {
             return (
               <div
                 className={cx(
                   "comment-line",
-                  index >= round.commentary.length - 1 && "highlight",
-                  index === visibleReportCountForRound - 1 && "is-new",
+                  line.id === finalReportLine?.id && "highlight",
+                  line.id === newestReportLine?.id && "is-new",
                 )}
                 key={line.id}
               >
@@ -1938,6 +2020,7 @@ function AssetLabKnockoutScreen({ onBack, musicOn, onMusicToggle }) {
 }
 
 export function App() {
+  useVisualViewportCssVars();
   const [screen, setScreen] = useState(getInitialScreen);
   const [musicOn, setMusicOn] = useState(false);
   const [attributes, setAttributes] = useState(attributesFromArray([5, 5, 5, 5, 5, 5]));

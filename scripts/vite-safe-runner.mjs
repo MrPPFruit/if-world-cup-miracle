@@ -31,6 +31,8 @@ const syncSource = () => {
     "--exclude",
     "dist",
     "--exclude",
+    ".npm-cache",
+    "--exclude",
     ".git",
     `${projectRoot}/`,
     `${mirrorRoot}/`,
