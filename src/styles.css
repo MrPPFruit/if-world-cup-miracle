@@ -42,6 +42,8 @@ body,
 #root {
   min-width: 320px;
   min-height: var(--app-viewport-height);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
