@@ -191,6 +191,113 @@ function assertNoDuplicateGeneratedCopy(run) {
   }
 }
 
+function recordTestStanding(standing, goalsFor, goalsAgainst) {
+  standing.played += 1;
+  standing.gf += goalsFor;
+  standing.ga += goalsAgainst;
+  standing.gd = standing.gf - standing.ga;
+  if (goalsFor > goalsAgainst) {
+    standing.wins += 1;
+    standing.points += 3;
+  } else if (goalsFor === goalsAgainst) {
+    standing.draws += 1;
+    standing.points += 1;
+  } else {
+    standing.losses += 1;
+  }
+}
+
+function sortTestStandings(rows) {
+  return [...rows].sort((left, right) => {
+    if (right.points !== left.points) return right.points - left.points;
+    if (right.gd !== left.gd) return right.gd - left.gd;
+    if (right.gf !== left.gf) return right.gf - left.gf;
+    return right.team.baseRating - left.team.baseRating;
+  });
+}
+
+function recalculateGroupStandings(group) {
+  const standings = new Map(
+    group.teams.map((team) => [
+      team.code,
+      { team, played: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, gd: 0, points: 0 },
+    ]),
+  );
+  for (const match of group.matches) {
+    recordTestStanding(standings.get(match.home.code), match.homeGoals, match.awayGoals);
+    recordTestStanding(standings.get(match.away.code), match.awayGoals, match.homeGoals);
+  }
+  return sortTestStandings(Array.from(standings.values()));
+}
+
+function getSelectedAdvancerCodes(groupResults) {
+  const firstTwo = groupResults.flatMap((group) => group.standings.slice(0, 2).map((standing) => standing.team.code));
+  const thirds = groupResults
+    .map((group) => group.standings[2])
+    .sort((left, right) => {
+      if (right.points !== left.points) return right.points - left.points;
+      if (right.gd !== left.gd) return right.gd - left.gd;
+      if (right.gf !== left.gf) return right.gf - left.gf;
+      return right.team.baseRating - left.team.baseRating;
+    })
+    .slice(0, 8)
+    .map((standing) => standing.team.code);
+  return new Set([...firstTwo, ...thirds]);
+}
+
+function assertTournamentConsistency(run, label = run.id) {
+  assert.equal(run.groupResults.length, 12, `${label} should include all groups`);
+
+  for (const group of run.groupResults) {
+    assert.equal(group.matches.length, 6, `${label}:${group.id} should include six group matches`);
+    const recalculated = recalculateGroupStandings(group);
+    assert.deepEqual(
+      group.standings.map((standing) => ({
+        code: standing.team.code,
+        played: standing.played,
+        wins: standing.wins,
+        draws: standing.draws,
+        losses: standing.losses,
+        gf: standing.gf,
+        ga: standing.ga,
+        gd: standing.gd,
+        points: standing.points,
+      })),
+      recalculated.map((standing) => ({
+        code: standing.team.code,
+        played: standing.played,
+        wins: standing.wins,
+        draws: standing.draws,
+        losses: standing.losses,
+        gf: standing.gf,
+        ga: standing.ga,
+        gd: standing.gd,
+        points: standing.points,
+      })),
+      `${label}:${group.id} standings must be derived from match results`,
+    );
+  }
+
+  const selectedAdvancerCodes = getSelectedAdvancerCodes(run.groupResults);
+  assert.equal(selectedAdvancerCodes.size, 32, `${label} should have 32 unique knockout advancers`);
+
+  const slotMap = createBracketSlotMap(run.groupResults);
+  const slotTeamCodes = new Set(Object.values(slotMap).filter(Boolean).map((team) => team.code));
+  assert.deepEqual([...slotTeamCodes].sort(), [...selectedAdvancerCodes].sort(), `${label} bracket slots must match group advancers`);
+
+  if (run.knockoutRounds.length === 0) {
+    const chinaAdvanced = selectedAdvancerCodes.has("cn");
+    assert.equal(chinaAdvanced, false, `${label} cannot skip knockout if China advanced`);
+    return;
+  }
+
+  assert.equal(selectedAdvancerCodes.has("cn"), true, `${label} China must advance before knockout`);
+  assert.ok(getTeamSlot(slotMap, "cn"), `${label} China must have a bracket slot`);
+  for (const round of run.knockoutRounds) {
+    assert.ok(selectedAdvancerCodes.has(round.opponent.code), `${label}:${round.key} opponent must be a group advancer: ${round.opponent.code}`);
+  }
+}
+
 const highScoreFallbackLines = generateMatchCommentary({
   match: { id: "knockout-SF", chinaGoals: 12, opponentGoals: 0 },
   opponent: getTeamByCode("gb-eng"),
@@ -314,6 +421,7 @@ assert.ok(favoriteWins > underdogWins * 2, `favoriteWins=${favoriteWins}, underd
 
 let zeroLuckBuilds = 0;
 let hiddenProfileBuilds = 0;
+let japanFinalMainLineBuilds = 0;
 for (let attack = 0; attack <= 10; attack += 1) {
   for (let defense = 0; defense <= 10; defense += 1) {
     for (let midfield = 0; midfield <= 10; midfield += 1) {
@@ -325,21 +433,27 @@ for (let attack = 0; attack <= 10; attack += 1) {
           if (ZERO_LUCK_ATTRIBUTE_PROFILES.some((profile) => profile.matches(attributes))) {
             hiddenProfileBuilds += 1;
           }
+          if (getZeroLuckHiddenChampionRoute(attributes, "nl")) {
+            japanFinalMainLineBuilds += 1;
+          }
         }
       }
     }
   }
 }
-const hiddenGlobalRate = (hiddenProfileBuilds * ZERO_LUCK_HIDDEN_CHAMPION_ROUTES.length) / (zeroLuckBuilds * TEAMS.length);
+const hiddenGlobalRate =
+  (hiddenProfileBuilds * (ZERO_LUCK_HIDDEN_CHAMPION_ROUTES.length - 1) + japanFinalMainLineBuilds) / (zeroLuckBuilds * TEAMS.length);
 assert.equal(zeroLuckBuilds, 7051);
 assert.equal(hiddenProfileBuilds, 1160);
-assert.ok(hiddenGlobalRate > 0.03 && hiddenGlobalRate < 0.031, hiddenGlobalRate);
+assert.equal(japanFinalMainLineBuilds, 1565);
+assert.ok(hiddenGlobalRate > 0.032 && hiddenGlobalRate < 0.033, hiddenGlobalRate);
 
 const zeroHiddenRun = simulateWorldCupRun({
   attributes: ZERO_LUCK_CHAMPION_ATTRIBUTES,
   selectedTeam: getTeamByCode("nl"),
   seed: "verify-zero-hidden",
 });
+assertTournamentConsistency(zeroHiddenRun, "verify-zero-hidden");
 assert.equal(zeroHiddenRun.result, "champion");
 assert.equal(zeroHiddenRun.isZeroHidden, true);
 assert.equal(zeroHiddenRun.settlement.defeatedOpponentCode, "jp");
@@ -348,6 +462,22 @@ const zeroHiddenSlots = createBracketSlotMap(zeroHiddenRun.groupResults);
 assert.equal(getTeamSlot(zeroHiddenSlots, "cn"), "1F");
 assert.equal(getTeamSlot(zeroHiddenSlots, "jp"), "2F");
 assert.equal(getFirstMeetingMatchId(getTeamSlot(zeroHiddenSlots, "cn"), getTeamSlot(zeroHiddenSlots, "jp")), "M104");
+const zeroHiddenGroup = zeroHiddenRun.groupResults.find((group) => group.id === "F");
+assert.deepEqual(
+  zeroHiddenGroup.standings.map((row) => ({
+    code: row.team.code,
+    record: `${row.wins}-${row.draws}-${row.losses}`,
+    gf: row.gf,
+    ga: row.ga,
+    points: row.points,
+  })),
+  [
+    { code: "cn", record: "1-2-0", gf: 2, ga: 1, points: 5 },
+    { code: "jp", record: "1-2-0", gf: 1, ga: 0, points: 5 },
+    { code: "tn", record: "0-3-0", gf: 1, ga: 1, points: 3 },
+    { code: "se", record: "0-1-2", gf: 0, ga: 2, points: 1 },
+  ],
+);
 assert.ok(
   zeroHiddenRun.knockoutRounds.at(-1).match.penalties?.[0] > zeroHiddenRun.knockoutRounds.at(-1).match.penalties?.[1] ||
     zeroHiddenRun.knockoutRounds.at(-1).match.chinaGoals > zeroHiddenRun.knockoutRounds.at(-1).match.opponentGoals,
@@ -372,11 +502,19 @@ for (const route of ZERO_LUCK_HIDDEN_CHAMPION_ROUTES) {
     selectedTeam: getTeamByCode(route.replacedTeamCode),
     seed: `verify-zero-route-${route.id}`,
   });
+  assertTournamentConsistency(run, route.id);
   const slotMap = createBracketSlotMap(run.groupResults);
+  const finalOpponentGroup = run.groupResults.find((group) =>
+    group.standings.some((standing) => standing.team.code === route.finalOpponentCode),
+  );
+  const finalOpponentStandingIndex = finalOpponentGroup?.standings.findIndex(
+    (standing) => standing.team.code === route.finalOpponentCode,
+  );
   assert.equal(run.result, "champion", route.id);
   assert.equal(run.settlement.defeatedOpponentCode, route.finalOpponentCode, route.id);
   assert.equal(getTeamSlot(slotMap, "cn"), route.chinaSlot, route.id);
   assert.equal(getTeamSlot(slotMap, route.finalOpponentCode), route.finalOpponentSlot, route.id);
+  assert.equal(finalOpponentStandingIndex + 1, Number(route.finalOpponentSlot[0]), route.id);
   assert.equal(run.knockoutRounds.at(-1).bracketMatchId, "M104", route.id);
 }
 
@@ -397,6 +535,7 @@ const zeroWrongRun = simulateWorldCupRun({
   selectedTeam: getTeamByCode("ht"),
   seed: "verify-zero-wrong-team",
 });
+assertTournamentConsistency(zeroWrongRun, "verify-zero-wrong-team");
 assert.equal(zeroWrongRun.result, "failure");
 assert.equal(zeroWrongRun.isZeroHidden, false);
 assert.equal(zeroWrongRun.settlement.defeatedOpponentCode, null);
@@ -412,6 +551,7 @@ for (let index = 0; index < 700; index += 1) {
     selectedTeam: getTeamByCode("ht"),
     seed: `verify-failure-stage-${index}`,
   });
+  assertTournamentConsistency(run, `verify-failure-stage-${index}`);
   if (run.runPlan.outcome === "failure" && !failureStageSamples.has(run.runPlan.failureStage)) {
     failureStageSamples.set(run.runPlan.failureStage, run);
   }
@@ -427,6 +567,28 @@ for (const [stage, run] of failureStageSamples) {
   } else {
     assert.equal(run.knockoutRounds.at(-1).key, stage, stage);
     assert.equal(run.knockoutRounds.at(-1).match.chinaGoals < run.knockoutRounds.at(-1).match.opponentGoals, true, stage);
+  }
+}
+
+const consistencyAttributeSamples = [
+  { attack: 5, defense: 5, midfield: 5, stamina: 5, tactics: 5, luck: 0 },
+  { attack: 6, defense: 5, midfield: 5, stamina: 5, tactics: 4, luck: 1 },
+  { attack: 7, defense: 4, midfield: 6, stamina: 5, tactics: 3, luck: 3 },
+  { attack: 5, defense: 8, midfield: 5, stamina: 4, tactics: 3, luck: 5 },
+  { attack: 8, defense: 5, midfield: 5, stamina: 4, tactics: 3, luck: 7 },
+  { attack: 6, defense: 6, midfield: 6, stamina: 6, tactics: 2, luck: 10 },
+];
+const consistencyTeamCodes = ["nl", "jp", "br", "ar", "fr", "de", "gb-eng", "ht"];
+for (const attributes of consistencyAttributeSamples) {
+  for (const teamCode of consistencyTeamCodes) {
+    for (let index = 0; index < 8; index += 1) {
+      const run = simulateWorldCupRun({
+        attributes,
+        selectedTeam: getTeamByCode(teamCode),
+        seed: `verify-tournament-consistency-${teamCode}-${attributes.luck}-${index}`,
+      });
+      assertTournamentConsistency(run, `consistency:${teamCode}:luck${attributes.luck}:${index}`);
+    }
   }
 }
 

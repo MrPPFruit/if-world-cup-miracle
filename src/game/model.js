@@ -12,7 +12,8 @@ export const ZERO_LUCK_CHAMPION_ATTRIBUTES = {
   luck: 0,
 };
 
-const LUCK_CHAMPION_CHANCE = [0, 0.02, 0.04, 0.07, 0.11, 0.17, 0.25, 0.36, 0.49, 0.62, 0.72];
+const LUCK_CHAMPION_CHANCE = [0, 0.115, 0.155, 0.205, 0.265, 0.335, 0.415, 0.505, 0.605, 0.7, 0.8];
+const LUCK_CHAMPION_FLOOR = [0, 0.1, 0.12, 0.16, 0.21, 0.27, 0.34, 0.42, 0.52, 0.62, 0.72];
 
 export function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -62,7 +63,11 @@ export function championChance(attributes, replacedTeam) {
   const skillModifier = clamp((nonLuckAverage - 5) * 0.026, -0.08, 0.08);
   const difficultyModifier = clamp(-getReplacementDifficulty(replacedTeam) * 0.01, -0.08, 0.05);
 
-  return clamp(LUCK_CHAMPION_CHANCE[luck] + skillModifier + difficultyModifier, 0.01, luck === 10 ? 0.8 : 0.72);
+  return clamp(
+    LUCK_CHAMPION_CHANCE[luck] + skillModifier + difficultyModifier,
+    LUCK_CHAMPION_FLOOR[luck],
+    luck === 10 ? 0.82 : 0.74,
+  );
 }
 
 export function expectedGoals(powerA, powerB) {

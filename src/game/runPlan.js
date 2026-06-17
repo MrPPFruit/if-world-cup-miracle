@@ -4,12 +4,12 @@ import { chance } from "./random.js";
 export const FAILURE_STAGES = ["GROUP", "R32", "R16", "QF", "SF", "FINAL"];
 
 const FAILURE_STAGE_BASE_WEIGHTS = {
-  GROUP: 42,
-  R32: 26,
-  R16: 14,
-  QF: 8,
-  SF: 6,
-  FINAL: 4,
+  GROUP: 26,
+  R32: 30,
+  R16: 18,
+  QF: 11,
+  SF: 8,
+  FINAL: 7,
 };
 
 const FAILURE_STAGE_DEPTH = {
@@ -47,8 +47,8 @@ export function chooseFailureStage({ attributes, rng }) {
   const reachBias = clamp((luck * 0.075 + (nonLuckAverage - 4.5) * 0.12), 0, 1);
   const weightedStages = FAILURE_STAGES.map((stage) => {
     const depth = FAILURE_STAGE_DEPTH[stage];
-    const earlyFactor = stage === "GROUP" ? 1.55 - reachBias : 1;
-    const lateFactor = stage === "GROUP" ? 1 : 0.55 + reachBias * (0.55 + depth * 0.18);
+    const earlyFactor = stage === "GROUP" ? clamp(1.28 - reachBias * 1.08, 0.18, 1.28) : 1;
+    const lateFactor = stage === "GROUP" ? 1 : clamp(0.72 + reachBias * (0.48 + depth * 0.18), 0.72, 1.9);
     return {
       value: stage,
       weight: FAILURE_STAGE_BASE_WEIGHTS[stage] * Math.max(0.16, earlyFactor * lateFactor),

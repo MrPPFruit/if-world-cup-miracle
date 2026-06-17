@@ -8,6 +8,12 @@ const build = (attributes) => ({
   tactics: Number(attributes?.tactics) || 0,
 });
 
+const matchesJapanFinalMainLine = (attributes) => {
+  if (Number(attributes?.luck) !== 0) return false;
+  const b = build(attributes);
+  return b.attack >= 5 && b.defense >= 5 && b.midfield >= 3 && b.stamina >= 3 && b.tactics >= 3;
+};
+
 export const ZERO_LUCK_ATTRIBUTE_PROFILES = [
   {
     id: "balanced-knife-edge",
@@ -69,7 +75,16 @@ const match = (round, opponentCode, chinaGoals, opponentGoals, tone, penalties =
   ...(penalties ? { penalties } : {}),
 });
 
-const route = ({ id, replacedTeamCode, chinaSlot, finalOpponentCode, finalOpponentSlot, knockoutResults, groupResults = [] }) => ({
+const route = ({
+  id,
+  replacedTeamCode,
+  chinaSlot,
+  finalOpponentCode,
+  finalOpponentSlot,
+  knockoutResults,
+  groupResults = [],
+  groupFixtureResults = [],
+}) => ({
   id,
   replacedTeamCode,
   chinaSlot,
@@ -77,6 +92,7 @@ const route = ({ id, replacedTeamCode, chinaSlot, finalOpponentCode, finalOppone
   finalOpponentSlot,
   championCharacterCode: finalOpponentCode,
   groupResults,
+  groupFixtureResults,
   knockoutResults,
 });
 
@@ -91,6 +107,11 @@ export const ZERO_LUCK_HIDDEN_CHAMPION_ROUTES = [
       { opponentCode: "jp", chinaGoals: 0, opponentGoals: 0, tone: "iron-wall" },
       { opponentCode: "se", chinaGoals: 1, opponentGoals: 0, tone: "set-piece" },
       { opponentCode: "tn", chinaGoals: 1, opponentGoals: 1, tone: "survive" },
+    ],
+    groupFixtureResults: [
+      { homeCode: "se", awayCode: "tn", homeGoals: 0, awayGoals: 0 },
+      { homeCode: "tn", awayCode: "jp", homeGoals: 0, awayGoals: 0 },
+      { homeCode: "jp", awayCode: "se", homeGoals: 1, awayGoals: 0 },
     ],
     knockoutResults: [
       match("R32", "us", 1, 0, "defense"),
@@ -222,7 +243,8 @@ export function getZeroLuckMatchedProfile(attributes) {
 }
 
 export function getZeroLuckHiddenChampionRoute(attributes, replacedTeamCode) {
-  const profile = getZeroLuckMatchedProfile(attributes);
+  const isJapanFinalMainLine = replacedTeamCode === ZERO_LUCK_HIDDEN_CHAMPION_ROUTE.replacedTeamCode && matchesJapanFinalMainLine(attributes);
+  const profile = getZeroLuckMatchedProfile(attributes) || (isJapanFinalMainLine ? ZERO_LUCK_ATTRIBUTE_PROFILES[0] : null);
   if (!profile) return null;
   const routeMatch = ZERO_LUCK_HIDDEN_CHAMPION_ROUTES.find((item) => item.replacedTeamCode === replacedTeamCode);
   if (!routeMatch) return null;

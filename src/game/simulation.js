@@ -84,6 +84,15 @@ function sortStandings(rows) {
   });
 }
 
+function calculateStandings(teams, matches) {
+  const standings = new Map(teams.map((team) => [team.code, createStanding(team)]));
+  for (const match of matches) {
+    recordStanding(standings.get(match.home.code), match.homeGoals, match.awayGoals);
+    recordStanding(standings.get(match.away.code), match.awayGoals, match.homeGoals);
+  }
+  return sortStandings(Array.from(standings.values()));
+}
+
 function createGroupMatch({ home, away, attributes, stage, rng }) {
   const homePower = home.code === CHINA_CODE ? getChinaMatchPower(attributes, { stage, opponentRating: away.baseRating }) : home.baseRating;
   const awayPower = away.code === CHINA_CODE ? getChinaMatchPower(attributes, { stage, opponentRating: home.baseRating }) : away.baseRating;
@@ -96,6 +105,48 @@ function createGroupMatch({ home, away, attributes, stage, rng }) {
     homeGoals,
     awayGoals,
   };
+}
+
+function createRankedGroupMatch(home, away, desiredRankByCode) {
+  const homeRank = desiredRankByCode.get(home.code);
+  const awayRank = desiredRankByCode.get(away.code);
+  let better = home;
+  let worse = away;
+  if (awayRank < homeRank) {
+    better = away;
+    worse = home;
+  }
+
+  if (Math.min(homeRank, awayRank) === 1 && Math.max(homeRank, awayRank) === 2) {
+    return {
+      id: `forced-group-${home.code}-${away.code}`,
+      home,
+      away,
+      homeGoals: 1,
+      awayGoals: 1,
+      tone: "forced-slot",
+    };
+  }
+
+  const betterGoals = Math.min(homeRank, awayRank) === 1 ? 2 : 1;
+  return {
+    id: `forced-group-${home.code}-${away.code}`,
+    home,
+    away,
+    homeGoals: home.code === better.code ? betterGoals : 0,
+    awayGoals: away.code === better.code ? betterGoals : 0,
+    tone: "forced-slot",
+    forcedLoserCode: worse.code,
+  };
+}
+
+function createRankedGroupMatches(group, desiredStandings) {
+  const desiredRankByCode = new Map(desiredStandings.map((standing, index) => [standing.team.code, index + 1]));
+  return GROUP_MATCH_PATTERN.map(([homeSlot, awaySlot]) => {
+    const home = group.teams.find((team) => team.slot === homeSlot);
+    const away = group.teams.find((team) => team.slot === awaySlot);
+    return createRankedGroupMatch(home, away, desiredRankByCode);
+  });
 }
 
 function getFixedOutcome(chinaGoals, opponentGoals, penalties = null) {
@@ -136,26 +187,38 @@ function createForcedScore({ chinaPower, opponentPower, rng, outcome, allowPenal
   return { chinaGoals, opponentGoals };
 }
 
-function getFixedZeroGroupMatch(home, away, attributes, rng, zeroHiddenRoute) {
+function getFixedZeroGroupMatch(home, away, zeroHiddenRoute) {
   const chinaIsHome = home.code === CHINA_CODE;
   const opponent = chinaIsHome ? away : home;
   const fixed = zeroHiddenRoute?.groupResults?.find((match) => match.opponentCode === opponent.code);
   if (!fixed) return null;
-  const chinaPower = getChinaMatchPower(attributes, { stage: "GROUP", opponentRating: opponent.baseRating });
-  const score = createForcedScore({
-    chinaPower,
-    opponentPower: opponent.baseRating,
-    rng,
-    outcome: getFixedOutcome(fixed.chinaGoals, fixed.opponentGoals),
-  });
 
   return {
     id: `zero-group-${opponent.code}`,
     home,
     away,
-    homeGoals: chinaIsHome ? score.chinaGoals : score.opponentGoals,
-    awayGoals: chinaIsHome ? score.opponentGoals : score.chinaGoals,
+    homeGoals: chinaIsHome ? fixed.chinaGoals : fixed.opponentGoals,
+    awayGoals: chinaIsHome ? fixed.opponentGoals : fixed.chinaGoals,
     tone: fixed.tone,
+  };
+}
+
+function getFixedZeroGroupFixture(home, away, zeroHiddenRoute) {
+  const fixed = zeroHiddenRoute?.groupFixtureResults?.find(
+    (match) =>
+      (match.homeCode === home.code && match.awayCode === away.code) ||
+      (match.homeCode === away.code && match.awayCode === home.code),
+  );
+  if (!fixed) return null;
+
+  const sameOrder = fixed.homeCode === home.code && fixed.awayCode === away.code;
+  return {
+    id: `zero-group-${home.code}-${away.code}`,
+    home,
+    away,
+    homeGoals: sameOrder ? fixed.homeGoals : fixed.awayGoals,
+    awayGoals: sameOrder ? fixed.awayGoals : fixed.homeGoals,
+    tone: "fixed-route",
   };
 }
 
@@ -208,7 +271,10 @@ function simulateGroup(group, { attributes, rng, replacedTeam, runPlan, zeroHidd
     let match = null;
 
     if (group.id === replacedTeam.group && hasChina && zeroHiddenRoute) {
-      match = getFixedZeroGroupMatch(home, away, attributes, rng, zeroHiddenRoute);
+      match = getFixedZeroGroupMatch(home, away, zeroHiddenRoute);
+    }
+    if (!match && group.id === replacedTeam.group && zeroHiddenRoute) {
+      match = getFixedZeroGroupFixture(home, away, zeroHiddenRoute);
     }
     if (!match && group.id === replacedTeam.group && hasChina) {
       match = createPlannedChinaGroupMatch({ home, away, attributes, rng, index: chinaMatchIndex, runPlan });
@@ -263,10 +329,16 @@ function forceStandingSlots(groupResults, assignments) {
       assignedCodes.add(assignment.teamCode);
     }
 
+    const slotsAlreadySatisfied = groupAssignments.every(
+      (assignment) => group.standings[assignment.rank - 1]?.team.code === assignment.teamCode,
+    );
+    if (slotsAlreadySatisfied) return group;
+
     const rest = group.standings.filter((row) => !assignedCodes.has(row.team.code));
     let restIndex = 0;
-    const standings = ordered.map((row) => row || rest[restIndex++]).filter(Boolean);
-    return { ...group, standings };
+    const desiredStandings = ordered.map((row) => row || rest[restIndex++]).filter(Boolean);
+    const matches = createRankedGroupMatches(group, desiredStandings);
+    return { ...group, matches, standings: calculateStandings(group.teams, matches) };
   });
 }
 

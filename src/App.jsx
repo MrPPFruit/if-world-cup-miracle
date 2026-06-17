@@ -15,7 +15,8 @@ import {
   RotateCcw,
   Trophy,
 } from "lucide-react";
-import { getSettlementCharacterAsset } from "./characterAssets";
+import { getCountryDefeatedCharacterAsset, getSettlementCharacterAsset } from "./characterAssets";
+import { stableHash } from "./game/random";
 import { simulateWorldCupRun } from "./game/simulation";
 import { GROUPS as GAME_GROUPS } from "./game/teams";
 import { track } from "./telemetry";
@@ -30,6 +31,12 @@ const TRANSITION_SETTLE_MS = 3000;
 const TRANSITION_LINE_INTERVAL_MS = 1700;
 const TRANSITION_FAST_LINE_INTERVAL_MS = 500;
 const KNOCKOUT_REPORT_LINE_INTERVAL_MS = 700;
+const BGM_SRC = "/assets/audio/brazil-football-carnival-samba.mp3";
+const FINAL_WHISTLE_SRC = "/assets/audio/referee-whistle-final.mp3";
+const BGM_VOLUME = 0.18;
+const BGM_DUCKED_VOLUME = 0.06;
+const WHISTLE_VOLUME = 0.82;
+const BGM_DUCK_MS = 1800;
 
 const ATTRIBUTES = [
   { key: "attack", label: "锋线火力", color: "#ff3b30", asset: "/assets/attribute/attack.png" },
@@ -50,6 +57,10 @@ const team = (code, flag, name) => ({ code, flag, name });
 
 const GROUPS = GAME_GROUPS;
 const PREVIEW_SELECTED_TEAM = { code: "jp", flag: "🇯🇵", name: "日本", group: "F" };
+const CHINA_SURVIVAL_ASSETS = Array.from(
+  { length: 10 },
+  (_, index) => `/assets/group-result/china-group-survival-${String(index + 1).padStart(2, "0")}.png`,
+);
 
 const TEAM_DISPLAY_NAMES = {
   阿尔及利亚: "阿尔及",
@@ -488,7 +499,7 @@ function getVisibleMatchScore(round, visibleLines) {
 function getInitialScreen() {
   if (typeof window === "undefined") return "home";
   const screen = new URLSearchParams(window.location.search).get("screen");
-  return ["home", "attributes", "replace", "transition", "group", "knockout", "final", "failure"].includes(screen) ? screen : "home";
+  return ["home", "attributes", "replace", "transition", "group", "knockout", "final", "failure", "asset-lab", "asset-lab-ko"].includes(screen) ? screen : "home";
 }
 
 function getTeamDisplayName(name) {
@@ -512,32 +523,145 @@ function PageShell({ children, className = "" }) {
   return <section className={cx("screen-content", className)}>{children}</section>;
 }
 
-function TopBar({ title, onBack, right = "help", className = "" }) {
+function MusicToggleIcon({ musicOn, size = 18 }) {
+  return <Music size={size} />;
+}
+
+function TopBar({ title, onBack, right = "help", className = "", musicOn = true, onMusicToggle }) {
   const hasTwoActions = right === "music-help";
+  const musicLabel = musicOn ? "关闭音乐" : "开启音乐";
   return (
     <div className={cx("top-bar", hasTwoActions && "top-bar-two-actions", className)}>
-      <button className="icon-button" onClick={onBack} aria-label="返回">
-        {onBack ? <ChevronLeft size={20} /> : null}
-      </button>
+      {onBack ? (
+        <button className="icon-button" onClick={onBack} aria-label="返回">
+          <ChevronLeft size={20} />
+        </button>
+      ) : (
+        <span className="top-spacer" aria-hidden="true" />
+      )}
       <div className="top-title">{title}</div>
       {hasTwoActions ? (
         <div className="top-actions">
-          <button className="icon-button" aria-label="音乐">
-            <Music size={18} />
+          <button className={cx("icon-button", "music-toggle-button", !musicOn && "is-muted")} aria-label={musicLabel} aria-pressed={musicOn} onClick={onMusicToggle}>
+            <MusicToggleIcon musicOn={musicOn} />
           </button>
           <button className="icon-button" aria-label="帮助">
             <HelpCircle size={18} />
           </button>
         </div>
       ) : right ? (
-        <button className="icon-button" aria-label={right === "music" ? "音乐" : "帮助"}>
-          {right === "music" ? <Music size={18} /> : <HelpCircle size={18} />}
+        <button
+          className={cx("icon-button", right === "music" && "music-toggle-button", right === "music" && !musicOn && "is-muted")}
+          aria-label={right === "music" ? musicLabel : "帮助"}
+          aria-pressed={right === "music" ? musicOn : undefined}
+          onClick={right === "music" ? onMusicToggle : undefined}
+        >
+          {right === "music" ? <MusicToggleIcon musicOn={musicOn} /> : <HelpCircle size={18} />}
         </button>
       ) : (
         <span className="top-spacer" aria-hidden="true" />
       )}
     </div>
   );
+}
+
+function useGameAudio(musicOn) {
+  const bgmRef = useRef(null);
+  const whistleRef = useRef(null);
+  const fadeRef = useRef(null);
+  const duckTimerRef = useRef(null);
+  const lastWhistleKeyRef = useRef(null);
+
+  const ensureAudio = useCallback(() => {
+    if (typeof Audio === "undefined") return null;
+    if (!bgmRef.current) {
+      const bgm = new Audio(BGM_SRC);
+      bgm.loop = true;
+      bgm.preload = "auto";
+      bgm.volume = BGM_VOLUME;
+      bgmRef.current = bgm;
+    }
+    if (!whistleRef.current) {
+      const whistle = new Audio(FINAL_WHISTLE_SRC);
+      whistle.preload = "auto";
+      whistle.volume = WHISTLE_VOLUME;
+      whistleRef.current = whistle;
+    }
+    return { bgm: bgmRef.current, whistle: whistleRef.current };
+  }, []);
+
+  const fadeBgmTo = useCallback((targetVolume, duration = 240) => {
+    const audio = ensureAudio();
+    if (!audio?.bgm) return;
+    if (fadeRef.current) window.cancelAnimationFrame(fadeRef.current);
+    const bgm = audio.bgm;
+    const startVolume = bgm.volume;
+    const startedAt = performance.now();
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      bgm.volume = startVolume + (targetVolume - startVolume) * progress;
+      if (progress < 1) {
+        fadeRef.current = window.requestAnimationFrame(tick);
+      }
+    };
+    fadeRef.current = window.requestAnimationFrame(tick);
+  }, [ensureAudio]);
+
+  useEffect(() => {
+    const audio = ensureAudio();
+    if (!audio?.bgm) return;
+    if (musicOn) {
+      audio.bgm.volume = Math.min(audio.bgm.volume || BGM_VOLUME, BGM_VOLUME);
+      audio.bgm.play().catch(() => {});
+      fadeBgmTo(BGM_VOLUME, 260);
+      return;
+    }
+    fadeBgmTo(0, 180);
+    const timer = window.setTimeout(() => {
+      bgmRef.current?.pause();
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [ensureAudio, fadeBgmTo, musicOn]);
+
+  useEffect(() => {
+    if (!musicOn) return undefined;
+    const unlockAudio = () => {
+      const audio = ensureAudio();
+      audio?.bgm?.play().catch(() => {});
+    };
+    window.addEventListener("pointerdown", unlockAudio, { once: true });
+    window.addEventListener("keydown", unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, [ensureAudio, musicOn]);
+
+  const playFinalWhistle = useCallback((key) => {
+    if (lastWhistleKeyRef.current === key) return;
+    lastWhistleKeyRef.current = key;
+    const audio = ensureAudio();
+    if (!audio?.whistle) return;
+    if (duckTimerRef.current) window.clearTimeout(duckTimerRef.current);
+    if (musicOn) fadeBgmTo(BGM_DUCKED_VOLUME, 120);
+    audio.whistle.currentTime = 0;
+    audio.whistle.volume = WHISTLE_VOLUME;
+    audio.whistle.play().catch(() => {});
+    duckTimerRef.current = window.setTimeout(() => {
+      if (musicOn) fadeBgmTo(BGM_VOLUME, 420);
+    }, BGM_DUCK_MS);
+  }, [ensureAudio, fadeBgmTo, musicOn]);
+
+  useEffect(() => {
+    return () => {
+      if (fadeRef.current) window.cancelAnimationFrame(fadeRef.current);
+      if (duckTimerRef.current) window.clearTimeout(duckTimerRef.current);
+      bgmRef.current?.pause();
+      whistleRef.current?.pause();
+    };
+  }, []);
+
+  return { playFinalWhistle };
 }
 
 function RadarChart({ values, compact = false }) {
@@ -600,13 +724,20 @@ function RadarChart({ values, compact = false }) {
   );
 }
 
-function HomeScreen({ onStart, setMusicOn }) {
+function HomeScreen({ onStart, musicOn, onMusicToggle }) {
   return (
     <PageShell className="home-screen">
       <div className="home-hero">
         <img src="/home-reference.png" alt="国足 IF：美加墨奇迹首页" />
       </div>
-      <button className="home-hotspot music-hotspot" onClick={() => setMusicOn((value) => !value)} aria-label="切换音乐" />
+      <button
+        className={cx("home-hotspot", "music-hotspot", "music-toggle-button", !musicOn && "is-muted")}
+        onClick={onMusicToggle}
+        aria-label={musicOn ? "关闭音乐" : "开启音乐"}
+        aria-pressed={musicOn}
+      >
+        <MusicToggleIcon musicOn={musicOn} size={18} />
+      </button>
       <button className="home-hotspot home-cta-hotspot" onClick={onStart} aria-label="开启平行宇宙" />
     </PageShell>
   );
@@ -739,7 +870,7 @@ function ReplacementScreen({ selected, setSelected, onNext, onBack }) {
   );
 }
 
-function TransitionScreen({ selectedTeam, gameRun, onDone }) {
+function TransitionScreen({ selectedTeam, gameRun, onDone, musicOn, onMusicToggle }) {
   const [visibleCount, setVisibleCount] = useState(1);
   const [isAccelerated, setIsAccelerated] = useState(false);
   const feedRef = useRef(null);
@@ -817,7 +948,7 @@ function TransitionScreen({ selectedTeam, gameRun, onDone }) {
 
   return (
     <PageShell className="transition-screen">
-      <div className="simple-title">平行宇宙正在改写</div>
+      <TopBar title="平行宇宙正在改写" right="music" musicOn={musicOn} onMusicToggle={onMusicToggle} />
       <div className="transition-head">
         <h2><span>{selectedTeam.group} 组</span> 正在发生一点小意外</h2>
         <p>解说席收到了一份很难解释的赛程更新</p>
@@ -847,7 +978,7 @@ function TransitionScreen({ selectedTeam, gameRun, onDone }) {
   );
 }
 
-function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
+function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack, musicOn, onMusicToggle }) {
   const selectedGroup = gameRun?.chinaGroup || GROUPS.find((group) => group.id === selectedTeam.group) || GROUPS[5];
   const opponents = selectedGroup.teams.filter((team) => team.code !== "cn" && team.code !== selectedTeam.code);
   const opponentA = opponents[0] || { code: "nl", name: "荷兰" };
@@ -894,12 +1025,18 @@ function GroupOverviewScreen({ selectedTeam, gameRun, onNext, onBack }) {
       ];
   const runCopy = gameRun?.copy || {};
   const hasGroupMatchDetails = chinaMatches.some((match) => Boolean(match.detail));
+  const groupHeroAsset = chinaAdvanced
+    ? CHINA_SURVIVAL_ASSETS[
+        Math.abs(stableHash(`${gameRun?.id || "preview"}:${selectedGroup.id}:${selectedTeam?.code || "team"}:group-survival`)) %
+          CHINA_SURVIVAL_ASSETS.length
+      ]
+    : "/assets/worldcup-trophy-cutout.png";
 
   return (
     <PageShell className="group-screen">
-      <TopBar title="小组赛结束" onBack={onBack} right="music" />
+      <TopBar title="小组赛结束" onBack={onBack} right="music" musicOn={musicOn} onMusicToggle={onMusicToggle} />
       <div className="result-card group-result">
-        <img className="group-trophy" src="/assets/worldcup-trophy-cutout.png" alt="" />
+        <img className={cx("group-trophy", chinaAdvanced && "group-survival-mascot")} src={groupHeroAsset} alt="" />
         <div className="group-result-copy">
           <h2>{runCopy.groupHeroTitle || (chinaAdvanced ? "中国队压线活了！" : "中国队梦醒小组赛")}</h2>
           <p>
@@ -1052,7 +1189,7 @@ function AdvancementBoard({ stage, revealed = true }) {
   );
 }
 
-function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack }) {
+function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack, musicOn, onMusicToggle, onFinalWhistle }) {
   const rounds = gameRun?.knockoutRounds?.length ? gameRun.knockoutRounds : KNOCKOUT_ROUNDS;
   const round = rounds[roundIndex] || rounds[0];
   const progress = roundIndex + 1;
@@ -1065,6 +1202,12 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
   const reportComplete = visibleReportCountForRound >= round.commentary.length;
   const visibleReportLines = round.commentary.slice(0, visibleReportCountForRound);
   const displayedScore = reportComplete ? round.score : getVisibleMatchScore(round, visibleReportLines);
+  const defeatedAsset = getCountryDefeatedCharacterAsset(round.opponent.code, round.opponent.name);
+  const chinaVictoryAsset =
+    CHINA_SURVIVAL_ASSETS[
+      Math.abs(stableHash(`${gameRun?.id || "preview"}:${roundIndex}:${round.opponent.code}:knockout-win`)) %
+        CHINA_SURVIVAL_ASSETS.length
+    ];
 
   useEffect(() => {
     let nextCount = 1;
@@ -1086,6 +1229,11 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
     if (!scroller) return;
     scroller.scrollTop = scroller.scrollHeight;
   }, [visibleReportCountForRound, roundIndex]);
+
+  useEffect(() => {
+    if (!reportComplete) return;
+    onFinalWhistle?.(`${gameRun?.id || "preview"}:${roundIndex}:${round.round || round.title}`);
+  }, [gameRun?.id, onFinalWhistle, reportComplete, round.round, round.title, roundIndex]);
 
   useGSAP(
     () => {
@@ -1109,10 +1257,17 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
 
   return (
     <PageShell className="knockout-screen">
-      <TopBar title={round.title} onBack={onBack} right="music" />
+      <TopBar title={round.title} onBack={onBack} right="music" musicOn={musicOn} onMusicToggle={onMusicToggle} />
       <div className={cx("knockout-result", reportComplete && "is-complete")}>
-        <span className="mini-label">淘汰赛  单场定生死</span>
-        <div className="score-line knockout-score-card">
+        <span className="mini-label">
+          {reportComplete ? runCopy.knockoutResultNote || "这球踢得不一定科学  但比分很讲礼貌" : "淘汰赛  单场定生死"}
+        </span>
+        <div className={cx("score-line knockout-score-card", reportComplete && "is-complete")}>
+          {reportComplete ? (
+            <div className="knockout-result-character china-victory-character" aria-hidden="true">
+              <img src={chinaVictoryAsset} alt="" />
+            </div>
+          ) : null}
           <div className="knockout-team is-home">
             <FlagIcon code="cn" className="score-flag" />
             <strong>中国队</strong>
@@ -1124,9 +1279,13 @@ function KnockoutScreen({ roundIndex, setRoundIndex, gameRun, onFinal, onBack })
             <FlagIcon code={round.opponent.code} className="score-flag" />
             <strong>{round.opponent.name}</strong>
           </div>
+          {reportComplete ? (
+            <div className="knockout-result-character opponent-defeated-character" aria-hidden="true">
+              <img src={defeatedAsset.src} alt="" />
+            </div>
+          ) : null}
         </div>
         {reportComplete ? <span className="knockout-status"><Trophy size={14} /> {round.status}</span> : null}
-        {reportComplete ? <p>{runCopy.knockoutResultNote || "这球踢得不一定科学  但比分很讲礼貌"}</p> : null}
       </div>
       <section className="data-panel commentary-panel" ref={reportRef} aria-live="polite">
         <header><span></span>本场战报<i></i></header>
@@ -1436,7 +1595,7 @@ function MiraclePathLine({ row }) {
   );
 }
 
-function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result = "champion" }) {
+function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result = "champion", musicOn, onMusicToggle }) {
   const [qrSrc, setQrSrc] = useState("");
   const reportRef = useRef(null);
   const selectedCode = selectedTeam.code || "jp";
@@ -1521,7 +1680,7 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
 
   return (
     <PageShell className={cx("final-screen", isFailure && "failure-screen")}>
-      <TopBar title="本局结算" onBack={onBack} right="music" />
+      <TopBar title="本局结算" onBack={onBack} right="music" musicOn={musicOn} onMusicToggle={onMusicToggle} />
       <div className="report-card" ref={reportRef}>
         <div className="final-hero">
           <div className="final-hero-copy">
@@ -1585,16 +1744,211 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
   );
 }
 
+function AssetLabScreen({ onBack, musicOn, onMusicToggle }) {
+  const [survivalIndex, setSurvivalIndex] = useState(5);
+  const groupAsset = CHINA_SURVIVAL_ASSETS[survivalIndex];
+  const defeatedAsset = getCountryDefeatedCharacterAsset("jp", "日本");
+  const options = [
+    {
+      tag: "A",
+      title: "对手下方剪报",
+      note: "推荐。终场后上方说明替换，删掉底部说明，把败者贴纸放到对手正下方。",
+    },
+    {
+      tag: "B",
+      title: "场边小剧场",
+      note: "角色从卡片外沿探出，侵入感最小，但存在感会弱一点。",
+    },
+    {
+      tag: "C",
+      title: "结果卡重排",
+      note: "终场后把比分区压缩成横条，腾出完整角色位，戏剧性最强。",
+    },
+  ];
+
+  return (
+    <PageShell className="asset-lab-screen">
+      <TopBar title="资产实验台" onBack={onBack} right="music" musicOn={musicOn} onMusicToggle={onMusicToggle} />
+      <section className="asset-lab-brief">
+        <h2>先验证，不进主流程</h2>
+        <p>中国队晋级素材可以替代奖杯位；淘汰赛败者角色建议只在终场后出现，避免抢实时比分。</p>
+      </section>
+
+      <section className="asset-lab-section">
+        <header>
+          <b>中国队压线资产</b>
+          <span>同局决赛用另一张</span>
+        </header>
+        <div className="result-card group-result asset-lab-group-card">
+          <img className="group-trophy group-survival-mascot" src={groupAsset} alt="" />
+          <div className="group-result-copy">
+            <h2>中国队压线活了！</h2>
+            <p>
+              <b>1</b> 胜 <b>1</b> 平 <b>1</b> 负，积 <b className="red-number">4</b> 分
+            </p>
+            <div className="status-chip green"><span>✓</span> 晋级 32 强</div>
+            <em>数学还没放弃我们  宇宙也没来得及关门</em>
+          </div>
+        </div>
+        <div className="asset-pair-note">
+          <span>本页小组赛：图 {survivalIndex + 1}</span>
+          <span>同局夺冠：图 {((survivalIndex + 3) % CHINA_SURVIVAL_ASSETS.length) + 1}</span>
+        </div>
+        <div className="asset-thumb-row" aria-label="中国队压线资产选择">
+          {CHINA_SURVIVAL_ASSETS.map((asset, index) => (
+            <button
+              className={cx("asset-thumb", index === survivalIndex && "is-active")}
+              key={asset}
+              onClick={() => setSurvivalIndex(index)}
+              type="button"
+            >
+              <img src={asset} alt="" />
+              <span>{index + 1}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="asset-lab-section">
+        <header>
+          <b>淘汰赛败者角色</b>
+          <span>先看三种方向</span>
+        </header>
+        <div className="asset-option-grid">
+          {options.map((option, index) => (
+            <article className={cx("asset-option-card", index === 0 && "is-recommended")} key={option.tag}>
+              <strong>{option.tag}</strong>
+              <div>
+                <h3>{option.title}</h3>
+                <p>{option.note}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="asset-lab-section">
+        <header>
+          <b>方案 A 快速示意</b>
+          <span>真实页面另开</span>
+        </header>
+        <a className="asset-real-page-link" href="?screen=asset-lab-ko">
+          打开真实淘汰赛页面占位测试 <ArrowRight size={16} />
+        </a>
+        <div className="lab-knockout-prototype">
+          <div className="lab-ko-status">
+            <span>战报中</span>
+            <p>保持三栏比分，用户先看清谁赢谁输。</p>
+          </div>
+          <div className="lab-ko-arrow">终场哨后</div>
+          <div className="lab-ko-card">
+            <span className="mini-label">淘汰赛  单场定生死</span>
+            <div className="score-line knockout-score-card lab-score-card">
+              <div className="knockout-team is-home">
+                <FlagIcon code="cn" className="score-flag" />
+                <strong>中国队</strong>
+              </div>
+              <div className="score-stack">
+                <b>2 : 1</b>
+              </div>
+              <div className="knockout-team is-away">
+                <FlagIcon code="jp" className="score-flag" />
+                <strong>日本</strong>
+              </div>
+            </div>
+            <span className="knockout-status"><Trophy size={14} /> 晋级 16 强</span>
+            <div className="lab-defeated-sticker">
+              <img src={defeatedAsset.src} alt="" />
+              <div>
+                <b>日本队被贴进战报角落</b>
+                <span>只在结果确认后出现，不挤压实时比分。</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="asset-lab-section asset-lab-decision">
+        <header>
+          <b>后续接入逻辑</b>
+          <span>如果方向通过</span>
+        </header>
+        <p>同一局里，小组赛压线素材和夺冠素材用同一个随机种子抽取，但第二次从剩余 9 张里取，避免重复。淘汰赛败者角色只绑定中国队获胜的淘汰赛对手，失败场次不展示对手失败形象。</p>
+      </section>
+    </PageShell>
+  );
+}
+
+function AssetLabKnockoutScreen({ onBack, musicOn, onMusicToggle }) {
+  const round = KNOCKOUT_ROUNDS[0];
+  const advancementStage = getAdvancementStage(1);
+  const defeatedAsset = getCountryDefeatedCharacterAsset(round.opponent.code, round.opponent.name);
+
+  return (
+    <PageShell className="knockout-screen asset-ko-real-screen">
+      <TopBar title={round.title} onBack={onBack} right="music" musicOn={musicOn} onMusicToggle={onMusicToggle} />
+      <div className="knockout-result is-complete asset-ko-real-result">
+        <span className="mini-label">这球踢得不一定科学  但比分很讲礼貌</span>
+        <div className="score-line knockout-score-card">
+          <div className="knockout-team is-home">
+            <FlagIcon code="cn" className="score-flag" />
+            <strong>中国队</strong>
+          </div>
+          <div className="score-stack">
+            <b>{round.score[0]} : {round.score[1]}</b>
+          </div>
+          <div className="knockout-team is-away">
+            <FlagIcon code={round.opponent.code} className="score-flag" />
+            <strong>{round.opponent.name}</strong>
+          </div>
+        </div>
+        <span className="knockout-status"><Trophy size={14} /> {round.status}</span>
+        <div className="asset-result-sticker" aria-hidden="true">
+          <img src={defeatedAsset.src} alt="" />
+        </div>
+      </div>
+      <section className="data-panel commentary-panel" aria-live="polite">
+        <header><span></span>本场战报<i></i></header>
+        <div className="commentary-scroll">
+          {round.commentary.map((line, index) => (
+            <div
+              className={cx(
+                "comment-line",
+                index >= round.commentary.length - 1 && "highlight",
+              )}
+              key={line.id}
+            >
+              {renderRichParts(line)}
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="bracket-section advancement-section">
+        <div className="section-title-row">
+          <h3><Trophy size={17} /> {advancementStage.title}</h3>
+          <span>{advancementStage.hint}</span>
+        </div>
+        <AdvancementBoard stage={advancementStage} revealed />
+      </section>
+      <button className="primary-button sticky-button" type="button">
+        {round.next} <ArrowRight size={20} />
+      </button>
+    </PageShell>
+  );
+}
+
 export function App() {
   const [screen, setScreen] = useState(getInitialScreen);
-  const [, setMusicOn] = useState(true);
+  const [musicOn, setMusicOn] = useState(false);
   const [attributes, setAttributes] = useState(attributesFromArray([5, 5, 5, 5, 5, 5]));
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [gameRun, setGameRun] = useState(null);
   const [roundIndex, setRoundIndex] = useState(0);
   const appRef = useRef(null);
+  const { playFinalWhistle } = useGameAudio(musicOn);
 
   const go = useCallback((nextScreen) => setScreen(nextScreen), []);
+  const toggleMusic = useCallback(() => setMusicOn((value) => !value), []);
 
   const startSimulation = useCallback(() => {
     if (!selectedTeam) return;
@@ -1665,7 +2019,7 @@ export function App() {
   return (
     <main className="app" ref={appRef}>
       <div className="phone-shell">
-        {screen === "home" ? <HomeScreen onStart={() => { track("game_start"); go("attributes"); }} setMusicOn={setMusicOn} /> : null}
+        {screen === "home" ? <HomeScreen onStart={() => { track("game_start"); go("attributes"); }} musicOn={musicOn} onMusicToggle={toggleMusic} /> : null}
         {screen === "attributes" ? (
           <AttributeScreen
             values={attributes}
@@ -1685,13 +2039,22 @@ export function App() {
             onBack={() => go("attributes")}
           />
         ) : null}
-        {screen === "transition" ? <TransitionScreen selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM} gameRun={gameRun} onDone={() => go("group")} /> : null}
+        {screen === "transition" ? (
+          <TransitionScreen
+            selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM}
+            gameRun={gameRun}
+            onDone={() => go("group")}
+            musicOn={musicOn}
+            onMusicToggle={toggleMusic}
+          />
+        ) : null}
         {screen === "group" ? (
           <GroupOverviewScreen
             selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM}
             gameRun={gameRun}
             onNext={() => go(gameRun?.knockoutRounds?.length ? "knockout" : "failure")}
-            onBack={() => go("replace")}
+            musicOn={musicOn}
+            onMusicToggle={toggleMusic}
           />
         ) : null}
         {screen === "knockout" ? (
@@ -1700,15 +2063,34 @@ export function App() {
             setRoundIndex={setRoundIndex}
             gameRun={gameRun}
             onFinal={() => go(gameRun?.result === "failure" ? "failure" : "final")}
-            onBack={() => go("group")}
+            musicOn={musicOn}
+            onMusicToggle={toggleMusic}
+            onFinalWhistle={playFinalWhistle}
           />
         ) : null}
         {screen === "final" ? (
-          <FinalScreen values={attributes} selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM} gameRun={gameRun} onRestart={restart} onBack={() => go("knockout")} />
+          <FinalScreen
+            values={attributes}
+            selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM}
+            gameRun={gameRun}
+            onRestart={restart}
+            musicOn={musicOn}
+            onMusicToggle={toggleMusic}
+          />
         ) : null}
         {screen === "failure" ? (
-          <FinalScreen values={attributes} selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM} gameRun={gameRun} result="failure" onRestart={restart} onBack={() => go(gameRun?.knockoutRounds?.length ? "knockout" : "group")} />
+          <FinalScreen
+            values={attributes}
+            selectedTeam={selectedTeam || PREVIEW_SELECTED_TEAM}
+            gameRun={gameRun}
+            result="failure"
+            onRestart={restart}
+            musicOn={musicOn}
+            onMusicToggle={toggleMusic}
+          />
         ) : null}
+        {screen === "asset-lab" ? <AssetLabScreen onBack={() => go("home")} musicOn={musicOn} onMusicToggle={toggleMusic} /> : null}
+        {screen === "asset-lab-ko" ? <AssetLabKnockoutScreen onBack={() => go("asset-lab")} musicOn={musicOn} onMusicToggle={toggleMusic} /> : null}
       </div>
     </main>
   );
