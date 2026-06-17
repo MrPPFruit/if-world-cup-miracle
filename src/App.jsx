@@ -16,6 +16,12 @@ import {
   Trophy,
 } from "lucide-react";
 import { getCountryDefeatedCharacterAsset, getSettlementCharacterAsset } from "./characterAssets";
+import {
+  preloadAttributeScreenAssets,
+  preloadGameRunAssets,
+  preloadPostReplacementAssets,
+  preloadReplacementScreenAssets,
+} from "./assetPreloader";
 import { stableHash } from "./game/random";
 import { simulateWorldCupRun } from "./game/simulation";
 import { GROUPS as GAME_GROUPS } from "./game/teams";
@@ -31,7 +37,7 @@ const TRANSITION_SETTLE_MS = 3000;
 const TRANSITION_LINE_INTERVAL_MS = 1700;
 const TRANSITION_FAST_LINE_INTERVAL_MS = 500;
 const KNOCKOUT_REPORT_LINE_INTERVAL_MS = 700;
-const BGM_SRC = "/assets/audio/brazil-football-carnival-samba-96k.mp3";
+const BGM_SRC = "/assets/audio/brazil-football-carnival-samba-80k.mp3";
 const FINAL_WHISTLE_SRC = "/assets/audio/referee-whistle-final.mp3";
 const BGM_VOLUME = 0.18;
 const BGM_DUCKED_VOLUME = 0.06;
@@ -2043,6 +2049,7 @@ export function App() {
     track("team_selected", { teamCode: selectedTeam.code, group: selectedTeam.group });
     setGameRun(run);
     setRoundIndex(0);
+    preloadGameRunAssets(run);
     setScreen("transition");
   }, [attributes, selectedTeam]);
 
@@ -2058,6 +2065,26 @@ export function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [screen]);
+
+  useEffect(() => {
+    preloadAttributeScreenAssets();
+    const timer = window.setTimeout(() => {
+      preloadReplacementScreenAssets();
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (screen === "attributes") {
+      preloadReplacementScreenAssets();
+    }
+    if (screen === "replace") {
+      preloadPostReplacementAssets();
+    }
+    if (gameRun) {
+      preloadGameRunAssets(gameRun);
+    }
+  }, [gameRun, screen]);
 
   useEffect(() => {
     track("page_view", { screen });
@@ -2102,13 +2129,14 @@ export function App() {
   return (
     <main className="app" ref={appRef}>
       <div className="phone-shell">
-        {screen === "home" ? <HomeScreen onStart={() => { track("game_start"); go("attributes"); }} musicOn={musicOn} onMusicToggle={toggleMusic} /> : null}
+        {screen === "home" ? <HomeScreen onStart={() => { track("game_start"); preloadAttributeScreenAssets(); go("attributes"); }} musicOn={musicOn} onMusicToggle={toggleMusic} /> : null}
         {screen === "attributes" ? (
           <AttributeScreen
             values={attributes}
             setValues={setAttributes}
             onNext={() => {
               track("attribute_submit", { luck: attributes.luck });
+              preloadReplacementScreenAssets();
               go("replace");
             }}
             onBack={() => go("home")}

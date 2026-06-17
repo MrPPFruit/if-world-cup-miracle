@@ -8,6 +8,7 @@ function pruneProductionOnlyAssets() {
     "home-hero.png",
     "figma-attribute-reference.html",
     "assets/audio/brazil-football-carnival-samba.mp3",
+    "assets/audio/brazil-football-carnival-samba-96k.mp3",
     "assets/characters",
     "assets/refs",
   ];
