@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import QRCode from "qrcode";
-import { toPng } from "html-to-image";
+import { toBlob, toPng } from "html-to-image";
 import {
   ArrowRight,
   ChevronLeft,
@@ -43,6 +43,7 @@ const BGM_VOLUME = 0.18;
 const BGM_DUCKED_VOLUME = 0.06;
 const WHISTLE_VOLUME = 0.82;
 const BGM_DUCK_MS = 1800;
+const PRODUCTION_SHARE_URL = "https://game.ppserver.xyz/";
 
 const ATTRIBUTES = [
   { key: "attack", label: "锋线火力", color: "#ff3b30", asset: "/assets/attribute/attack.png" },
@@ -76,6 +77,39 @@ const TEAM_DISPLAY_NAMES = {
 
 function getCompactScoreTeamName(name) {
   return TEAM_DISPLAY_NAMES[name] || name;
+}
+
+async function writeClipboardText(text) {
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } finally {
+    textarea.remove();
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = url;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const GROUP_ADVANCE_PREVIEW = {
@@ -758,6 +792,9 @@ function RadarChart({ values, compact = false }) {
         <polygon
           key={level}
           className="radar-grid"
+          fill="none"
+          stroke="#b9dafb"
+          strokeWidth="1"
           points={ATTRIBUTES.map((_, index) => {
             const angle = -Math.PI / 2 + (index * 2 * Math.PI) / ATTRIBUTES.length;
             return `${center + Math.cos(angle) * radius * level},${center + Math.sin(angle) * radius * level}`;
@@ -765,11 +802,36 @@ function RadarChart({ values, compact = false }) {
         />
       ))}
       {points.map((point) => (
-        <line key={point.attr.key} className="radar-axis" x1={center} y1={center} x2={point.gx} y2={point.gy} />
+        <line
+          key={point.attr.key}
+          className="radar-axis"
+          x1={center}
+          y1={center}
+          x2={point.gx}
+          y2={point.gy}
+          stroke="#d5e8ff"
+          strokeWidth="1"
+        />
       ))}
-      <polygon className="radar-fill" points={points.map((point) => `${point.x},${point.y}`).join(" ")} />
+      <polygon
+        className="radar-fill"
+        points={points.map((point) => `${point.x},${point.y}`).join(" ")}
+        fill="#2f80ed"
+        fillOpacity="0.28"
+        stroke="#2f80ed"
+        strokeWidth="2"
+      />
       {points.map((point) => (
-        <circle key={`${point.attr.key}-dot`} className="radar-dot" cx={point.x} cy={point.y} r="3" />
+        <circle
+          key={`${point.attr.key}-dot`}
+          className="radar-dot"
+          cx={point.x}
+          cy={point.y}
+          r="3"
+          fill="#ef1f2f"
+          stroke="#ffffff"
+          strokeWidth="1.5"
+        />
       ))}
       {valueLabels.map((item) => (
         <text key={item.label} className="radar-value-label" x={center} y={center - radius * item.level + 10}>
@@ -1685,11 +1747,15 @@ function MiraclePathLine({ row }) {
 
 function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result = "champion", musicOn, onMusicToggle }) {
   const [qrSrc, setQrSrc] = useState("");
+  const [copyStatus, setCopyStatus] = useState("idle");
+  const [saveStatus, setSaveStatus] = useState("idle");
+  const [isSaving, setIsSaving] = useState(false);
   const reportRef = useRef(null);
   const selectedCode = selectedTeam.code || "jp";
   const resultState = gameRun?.settlement?.result || result;
   const isFailure = resultState === "failure";
   const runCopy = gameRun?.copy || {};
+  const shareUrl = PRODUCTION_SHARE_URL;
   const fallbackPathRows = isFailure
     ? [
         { type: "replace", label: "替换", verb: "贴上", targetCode: selectedCode, targetName: selectedTeam.name },
@@ -1719,34 +1785,58 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
 
   const copyLink = async () => {
     track("share_click", { action: "copy_link", result: resultState });
+    setCopyStatus("idle");
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const copied = await writeClipboardText(shareUrl);
+      setCopyStatus(copied ? "copied" : "failed");
     } catch {
-      // Clipboard permission can be blocked in previews; the UI remains usable.
+      setCopyStatus("failed");
     }
   };
 
   const saveReport = async () => {
-    if (!reportRef.current) return;
+    if (!reportRef.current || isSaving) return;
     track("share_click", { action: "save_report", result: resultState });
+    setCopyStatus("idle");
+    setIsSaving(true);
+    setSaveStatus("saving");
     try {
-      const dataUrl = await toPng(reportRef.current, {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const exportOptions = {
         cacheBust: true,
         pixelRatio: 2,
         backgroundColor: "#ffffff",
-      });
-      const link = document.createElement("a");
-      link.download = "guozu-if-report.png";
-      link.href = dataUrl;
-      link.click();
+        skipFonts: true,
+      };
+      const filename = `guozu-if-${resultState}-report.png`;
+      const blob = await toBlob(reportRef.current, exportOptions);
+      if (blob) {
+        const file = new File([blob], filename, { type: "image/png" });
+        if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+          await navigator.share({
+            files: [file],
+            title: "国足 IF：美加墨奇迹",
+            text: "我的国足 IF 宇宙线结算图",
+          });
+        } else {
+          downloadBlob(blob, filename);
+        }
+      } else {
+        const dataUrl = await toPng(reportRef.current, exportOptions);
+        const response = await fetch(dataUrl);
+        downloadBlob(await response.blob(), filename);
+      }
+      setSaveStatus("saved");
     } catch {
-      // Report export can fail if the preview browser blocks canvas/image reads.
+      setSaveStatus("failed");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   useEffect(() => {
     let mounted = true;
-    QRCode.toDataURL(window.location.href, {
+    QRCode.toDataURL(shareUrl, {
       width: 132,
       margin: 1,
       color: {
@@ -1764,7 +1854,19 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [shareUrl]);
+
+  useEffect(() => {
+    if (copyStatus === "idle") return undefined;
+    const timer = window.setTimeout(() => setCopyStatus("idle"), 1800);
+    return () => window.clearTimeout(timer);
+  }, [copyStatus]);
+
+  useEffect(() => {
+    if (saveStatus !== "saved" && saveStatus !== "failed") return undefined;
+    const timer = window.setTimeout(() => setSaveStatus("idle"), 2200);
+    return () => window.clearTimeout(timer);
+  }, [saveStatus]);
 
   return (
     <PageShell className={cx("final-screen", isFailure && "failure-screen")}>
@@ -1815,14 +1917,17 @@ function FinalScreen({ values, selectedTeam, gameRun, onRestart, onBack, result 
             </div>
             <p>扫码开启你的宇宙线</p>
             <button onClick={copyLink}>
-              <Copy size={14} /> 复制链接
+              <Copy size={14} /> {copyStatus === "copied" ? "已复制" : copyStatus === "failed" ? "复制失败" : "复制链接"}
             </button>
+            <span className="share-feedback" aria-live="polite">
+              {copyStatus === "copied" ? "已复制线上链接" : copyStatus === "failed" ? shareUrl : ""}
+            </span>
           </section>
         </div>
       </div>
       <div className="final-actions">
-        <button className="small-red-button" onClick={saveReport}>
-          <Download size={15} /> 保存战报图
+        <button className="small-red-button" onClick={saveReport} disabled={isSaving}>
+          <Download size={15} /> {saveStatus === "saving" ? "生成中" : saveStatus === "saved" ? "已生成" : saveStatus === "failed" ? "生成失败" : "保存战报图"}
         </button>
         <button className="small-light-button" onClick={onRestart}>
           <RotateCcw size={15} /> {isFailure ? "重开复活赛" : "重开一条宇宙线"}

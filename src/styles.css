@@ -4362,6 +4362,10 @@ button {
   color: #40506a;
 }
 
+.failure-screen .report-card {
+  align-self: start;
+}
+
 .failure-screen .final-hero {
   border-color: rgba(128, 146, 173, 0.32);
   background:
@@ -4503,6 +4507,20 @@ button {
   background: #fff;
 }
 
+.share-feedback {
+  display: block;
+  min-height: 12px;
+  margin-top: 3px;
+  color: #73829b;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.1;
+  max-width: 118px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .final-actions {
   position: static;
   align-self: end;
@@ -4532,6 +4550,11 @@ button {
   justify-content: center;
   gap: 6px;
   font-weight: 1000;
+}
+
+.small-red-button:disabled {
+  cursor: wait;
+  opacity: 0.82;
 }
 
 @media (max-width: 520px) {
